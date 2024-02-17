@@ -5,6 +5,7 @@ const appConfigSchema = new mongoose.Schema(
     configID: {
       type: String,
       required: true,
+      unique: true,
     },
 
     params: {

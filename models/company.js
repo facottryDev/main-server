@@ -4,17 +4,20 @@ const companySchema = new mongoose.Schema(
   {
     companyID: {
       type: String,
+      unique: true,
       required: true,
     },
 
     name: {
       type: String,
       required: true,
+      trim: true,
     },
 
     address: {
       type: String,
       default: "NA",
+      trim: true,
     },
 
     owner: [

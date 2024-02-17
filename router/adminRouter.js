@@ -4,7 +4,7 @@ import { createAppConfig, createPlayerConfig, getAppConfigFromId, getConfigsFrom
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
 
-router.use(isAuth);
+// router.use(isAuth);
 
 // USER BASED ROUTES
 router.get("/get-company-employees", getCompanyEmployeesID);

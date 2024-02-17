@@ -6,6 +6,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import authRouter from "./router/authRouter.js";
 import adminRouter from "./router/adminRouter.js";
+import userRouter from "./router/userRouter.js";
 import { createClient } from "redis";
 import RedisStore from "connect-redis";
 import session from "express-session";
@@ -83,3 +84,4 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/admin", adminRouter);
+app.use("/user", userRouter);

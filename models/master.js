@@ -9,22 +9,26 @@ const masterSchema = new mongoose.Schema(
 
     country: {
       type: String,
-      default: "IN",
+      required: true,
+      default: "ALL",
     },
 
     subscription: {
       type: String,
-      default: "free",
+      required: true,
+      default: "ALL",
     },
 
     OS: {
       type: String,
-      default: "LG",
+      required: true,
+      default: "ALL",
     },
 
     OSver: {
       type: String,
-      default: "1.0",
+      required: true,
+      default: "ALL",
     },
 
     appConfigID: {
@@ -55,7 +59,7 @@ const masterSchema = new mongoose.Schema(
     playerConfigData: {
       autoplay: {
         type: Boolean,
-        default: false,
+        default: true,
       },
       controls: {
         type: Boolean,
@@ -63,7 +67,6 @@ const masterSchema = new mongoose.Schema(
       },
       customObject: {
         type: Object,
-        required: false,
       },
     },
   },

@@ -5,16 +5,19 @@ const projectSchema = new mongoose.Schema(
     projectID: {
       type: String,
       required: true,
+      unique: true,
     },
 
     projectName: {
       type: String,
       required: true,
+      trim: true,
     },
 
     type: {
       type: String,
-      default: "PROD"
+      default: "PROD",
+      enum: ["PROD", "UAT", "DEV", "TEST"],
     },
 
     companyID: {
@@ -25,36 +28,22 @@ const projectSchema = new mongoose.Schema(
     owner: {
       type: String,
       required: true,
+      trim: true,
     },
 
     editors: [
       {
         type: String,
+        trim: true,
       }
     ],
 
     viewers: [
       {
         type: String,
+        trim: true,
       }
-    ],
-
-    configs: [
-      {
-        filterID: {
-          type: String,
-          required: true,
-        },
-        appConfigID: {
-          type: String,
-          required: true,
-        },
-        playerConfigID: {
-          type: String,
-          required: true,
-        },
-      },
-    ],
+    ]
   },
   { timestamps: true }
 );

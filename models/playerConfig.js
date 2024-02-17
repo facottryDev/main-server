@@ -5,12 +5,13 @@ const playerConfigSchema = new mongoose.Schema(
     configID: {
       type: String,
       required: true,
+      unique: true,
     },
 
     params: {
       autoplay: {
         type: Boolean,
-        default: false,
+        default: true,
       },
       controls: {
         type: Boolean,
@@ -18,7 +19,6 @@ const playerConfigSchema = new mongoose.Schema(
       },
       customObject: {
         type: Object,
-        required: false,
       }
     },
   },

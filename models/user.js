@@ -6,15 +6,24 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Provide Email"],
       unique: [true, "Email already exists"],
+      validate: {
+        validator: function (value) {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          return emailRegex.test(value);
+        },
+        message: "Invalid email format",
+      },
     },
 
     password: {
       type: String,
       required: [true, "Provide password"],
+      minlength: [6, "Password must be at least 8 characters long"],
     },
 
     name: {
       type: String,
+      trim: true,
     },
 
     companyID: {
@@ -23,6 +32,14 @@ const userSchema = new mongoose.Schema(
 
     mobile: {
       type: Number,
+      validate: {
+        validator: function (value) {
+          const mobileRegex = /^\d{10}$/;
+          return mobileRegex.test(value);
+        },
+        message: "Invalid mobile number",
+      },
+      trim: true,
     },
 
     profilePic: {
@@ -31,6 +48,7 @@ const userSchema = new mongoose.Schema(
 
     address: {
       type: String,
+      trim: true,
     },
 
     projects: [

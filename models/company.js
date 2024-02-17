@@ -20,7 +20,7 @@ const companySchema = new mongoose.Schema(
       trim: true,
     },
 
-    owner: [
+    owners: [
       {
         type: String,
         required: true,

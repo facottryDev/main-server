@@ -25,7 +25,7 @@ router.post("/forgot", forgotPassword);
 router.post("/reset", resetPassword);
 
 //USER
-router.get("/fetch-user", isAuth, fetchUserDetails);
+router.get("/get-user", isAuth, fetchUserDetails);
 router.patch("/update-user", isAuth, updateUserDetails);
 
 router.get("/", isAuth, (req, res) => {

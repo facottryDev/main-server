@@ -8,6 +8,11 @@ const appConfigSchema = new mongoose.Schema(
       unique: true,
     },
 
+    projectID: {
+      type: String,
+      required: true,
+    },
+
     params: {
       theme: {
         type: String,

@@ -85,7 +85,7 @@ export const logOut = (req, res) => {
     }
 
     res.clearCookie("sid");
-    return res.json("Logged out successfully");
+    return res.json({ message: "Logged out"});
   });
 };
 
@@ -154,7 +154,7 @@ export const sendOTP = async (req, res) => {
       req.session.email = req.body.email;
       req.session.otpExpiry = Date.now() + 180000; //5 Minutes from now
 
-      return res.json(result);
+      return res.json({ message: `OTP sent to ${req.body.email}`});
     }
 
     res.status(500).send("Error sending OTP");
@@ -192,13 +192,13 @@ export const verifyOTP = async (req, res) => {
       delete req.session.otp;
       delete req.session.otpExpiry;
       req.session.tempSessionExp = Date.now() + 300000; //5 Minutes from now
-      return res.send("OTP Verified");
+      return res.send({ message: "OTP Verified"});
     } else {
       if (userEnteredOTP === storedOTP) {
         delete req.session.otp;
         delete req.session.otpExpiry;
         req.session.tempSessionExp = Date.now() + 300000; //5 Minutes from now
-        return res.send("OTP Verified");
+        return res.send({ message: "OTP Verified"});
       } else {
         return res.status(403).send("Wrong OTP");
       }
@@ -359,7 +359,7 @@ export const resetPassword = async (req, res) => {
     if (req.session.email) delete req.session.email;
     delete req.session.req.session.tempSessionExp;
 
-    return res.json("Password Reset Successful!");
+    return res.json({ message: "Password reset successful" });
   } catch (error) {
     if (error.details) {
       return res
@@ -376,7 +376,7 @@ export const fetchUserDetails = async (req, res) => {
   try {
     const user = await users.findOne(
       { email: req.session.username },
-      { _id: 0, password: 0 }
+      { _id: 0, password: 0, __v: 0 }
     );
 
     if (user) {
@@ -394,14 +394,20 @@ export const updateUserDetails = async (req, res) => {
     const { name, mobile, profilePic, address } = req.body;
     const email = req.session.username;
 
-    const updatedUser = await users.findOneAndUpdate(
+    const result = await users.updateOne(
       { email },
-      { $set: { name, mobile, profilePic, address} },
-      { new: true }
-    );
+      {
+        $set: {
+          name,
+          mobile,
+          profilePic,
+          address,
+        },
+      }
+    )
 
-    if (updatedUser) {
-      return res.status(200).json("User details updated");
+    if (result) {
+      return res.status(200).json({ message: "User details updated" });
     } else {
       return res.status(500).send("Error updating user details");
     }

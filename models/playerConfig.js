@@ -8,6 +8,11 @@ const playerConfigSchema = new mongoose.Schema(
       unique: true,
     },
 
+    projectID: {
+      type: String,
+      required: true,
+    },
+
     params: {
       autoplay: {
         type: Boolean,

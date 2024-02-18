@@ -27,6 +27,7 @@ const userSchema = new mongoose.Schema(
 
     companyID: {
       type: String,
+      trim: true,
     },
 
     mobile: {

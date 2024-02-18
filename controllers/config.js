@@ -5,6 +5,75 @@ import AppConfig from "../models/appConfig.js";
 import PlayerConfig from "../models/playerConfig.js";
 import { getNextSequence } from "../lib/helpers.js";
 
+// CREATE NEW APP CONFIG
+export const createAppConfig = async (req, res) => {
+  try {
+    const bodySchema = Joi.object({
+      theme: Joi.string().required(),
+      language: Joi.string().required(),
+    });
+    await bodySchema.validateAsync(req.body);
+    const params = req.body;
+
+    // Check if AppConfig already exists
+    const appConfig = await AppConfig.findOne({ params });
+    if (appConfig) {
+      return res.status(409).json({ message: "AppConfig already exists" });
+    }
+
+    // Create new AppConfig
+    const nextId = await getNextSequence("appConfig");
+    const newAppConfig = new AppConfig({ configID: "AC_" + nextId, params });
+    await newAppConfig.save();
+
+    res.status(201).json(newAppConfig);
+  } catch (error) {
+    if (error.details) {
+      return res
+        .status(400)
+        .json(error.details.map((detail) => detail.message).join(", "));
+    }
+
+    return res.status(500).send(error.message);
+  }
+};
+
+// CREATE NEW PLAYER CONFIG
+export const createPlayerConfig = async (req, res) => {
+  try {
+    const bodySchema = Joi.object({
+      autoplay: Joi.boolean().required(),
+      controls: Joi.boolean().required(),
+    });
+    await bodySchema.validateAsync(req.body);
+    const params = req.body;
+
+    // Check if PlayerConfig already exists
+    const playerConfig = await PlayerConfig.findOne({ params });
+    if (playerConfig) {
+      return res.status(409).json({ message: "PlayerConfig already exists" });
+    }
+
+    // Create new PlayerConfig
+    const nextId = await getNextSequence("playerConfig");
+    const newPlayerConfig = new PlayerConfig({
+      configID: "PC_" + nextId,
+      params,
+    });
+    await newPlayerConfig.save();
+
+    res.status(201).json(newPlayerConfig);
+  } catch (error) {
+    if (error.details) {
+      return res
+        .status(400)
+        .json(error.details.map((detail) => detail.message).join(", "));
+    }
+
+    return res.status(500).send(error.message);
+  }
+};
+
 // GET FILTER_ID FROM FILTER PARAMS
 export const getFilterIdFromParams = async (req, res) => {
   try {
@@ -118,75 +187,6 @@ export const getPlayerConfigFromId = async (req, res) => {
     }
 
     res.status(200).json(result);
-  } catch (error) {
-    if (error.details) {
-      return res
-        .status(400)
-        .json(error.details.map((detail) => detail.message).join(", "));
-    }
-
-    return res.status(500).send(error.message);
-  }
-};
-
-// CREATE NEW APP CONFIG
-export const createAppConfig = async (req, res) => {
-  try {
-    const bodySchema = Joi.object({
-      theme: Joi.string().required(),
-      language: Joi.string().required(),
-    });
-    await bodySchema.validateAsync(req.body);
-    const params = req.body;
-
-    // Check if AppConfig already exists
-    const appConfig = await AppConfig.findOne({ params });
-    if (appConfig) {
-      return res.status(409).json({ message: "AppConfig already exists" });
-    }
-
-    // Create new AppConfig
-    const nextId = await getNextSequence("appConfig");
-    const newAppConfig = new AppConfig({ configID: "AC_" + nextId, params });
-    await newAppConfig.save();
-
-    res.status(201).json(newAppConfig);
-  } catch (error) {
-    if (error.details) {
-      return res
-        .status(400)
-        .json(error.details.map((detail) => detail.message).join(", "));
-    }
-
-    return res.status(500).send(error.message);
-  }
-};
-
-// CREATE NEW PLAYER CONFIG
-export const createPlayerConfig = async (req, res) => {
-  try {
-    const bodySchema = Joi.object({
-      autoplay: Joi.boolean().required(),
-      controls: Joi.boolean().required(),
-    });
-    await bodySchema.validateAsync(req.body);
-    const params = req.body;
-
-    // Check if PlayerConfig already exists
-    const playerConfig = await PlayerConfig.findOne({ params });
-    if (playerConfig) {
-      return res.status(409).json({ message: "PlayerConfig already exists" });
-    }
-
-    // Create new PlayerConfig
-    const nextId = await getNextSequence("playerConfig");
-    const newPlayerConfig = new PlayerConfig({
-      configID: "PC_" + nextId,
-      params,
-    });
-    await newPlayerConfig.save();
-
-    res.status(201).json(newPlayerConfig);
   } catch (error) {
     if (error.details) {
       return res

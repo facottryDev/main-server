@@ -75,7 +75,7 @@ mongoose
   )
   .catch((err) => {
     console.log(err);
-  });
+  });  
 
 // Routes
 app.get("/", (req, res) => {

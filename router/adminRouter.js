@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addCompany, addProject, getCompanyProfile, getProjectUsers, getUserProjects, updateProjectAccess } from "../controllers/user.js";
+import { addCompany, addProject, getCompanyDetails, getProjectDetails, getAdminProjects, addAdminToProject } from "../controllers/admin.js";
 import { createAppConfig, createPlayerConfig, getAppConfigFromId, getConfigsFromFilterId, getFilterIdFromParams, getPlayerConfigFromId, mapConfigsToFilter } from "../controllers/config.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -9,11 +9,10 @@ router.use(isAuth);
 // USER BASED ROUTES
 router.post("/add-company", addCompany);
 router.post("/add-project", addProject);
-router.get("/get-company-profile", getCompanyProfile);
-router.get("/get-project-users", getProjectUsers);
-router.get("/get-user-projects", getUserProjects);
-router.post("/update-project-access", updateProjectAccess);
-
+router.get("/get-company-details", getCompanyDetails);
+router.get("/get-project-details", getProjectDetails);
+router.get("/get-admin-projects", getAdminProjects);
+router.post("/add-admin-to-project", addAdminToProject);
 
 // CONFIG BASED ROUTES
 router.get("/get-filter-id-from-params", getFilterIdFromParams);

@@ -1,7 +1,7 @@
 import { generateID } from "../lib/helpers.js";
 import Company from "../models/company.js";
 import Project from "../models/project.js";
-import User from "../models/user.js";
+import Admin from "../models/admin.js";
 
 // ADD COMPANY - COMPANY OWNER
 export const addCompany = async (req, res) => {
@@ -32,6 +32,20 @@ export const addCompany = async (req, res) => {
     });
 
     await newCompany.save();
+
+    // Create / Update Admin document
+    const admin = await Admin.findOne({ email: owner });
+    if (admin) {
+      admin.companyID = companyID;
+      await admin.save();
+    } else {
+      const newAdmin = new Admin({
+        email: owner,
+        companyID,
+      });
+      await newAdmin.save();
+    }
+
     res.status(200).json({ message: "Company added successfully", companyID });
   } catch (error) {
     return res.status(500).send(error.message);
@@ -58,9 +72,12 @@ export const addProject = async (req, res) => {
     }
 
     // Check if project already exists
-    const projectExists = company.projects.includes(projectID);
+    const projectExists = await Project.findOne({
+      companyID: company.companyID,
+      name,
+    });
     if (projectExists) {
-      return res.status(400).json({ message: "Project already exists" });
+      return res.status(409).json({ message: "A project with same name already exists", projectID: projectExists.projectID });
     }
 
     // Create new project
@@ -69,7 +86,7 @@ export const addProject = async (req, res) => {
       name,
       type,
       companyID: company.companyID,
-      owner,
+      owners: [owner],
     });
 
     await newProject.save();
@@ -78,14 +95,20 @@ export const addProject = async (req, res) => {
     company.projects.push(projectID);
     await company.save();
 
+    // Update Admin document
+    await Admin.updateOne(
+      { email: owner },
+      { $push: { projects: { projectID, role: "owner" } } }
+    );
+
     res.status(200).json({ message: "Project added successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }
 };
 
-// GET COMPANY PROFILE - COMPANY OWNER
-export const getCompanyProfile = async (req, res) => {
+// GET YOUR COMPANY'S DETAILS - COMPANY OWNER
+export const getCompanyDetails = async (req, res) => {
   try {
     const email = req.session.username;
 
@@ -104,8 +127,8 @@ export const getCompanyProfile = async (req, res) => {
   }
 };
 
-// FETCH ALL USERS OF A PROJECT - PROJECT OWNER
-export const getProjectUsers = async (req, res) => {
+// GET A PROJECT'S DETAILS - PROJECT OWNER
+export const getProjectDetails = async (req, res) => {
   try {
     const email = req.session.username;
 
@@ -113,11 +136,8 @@ export const getProjectUsers = async (req, res) => {
     const result = await Project.findOne(
       { projectID, owners: { $in: [email] } },
       {
-        companyID: 1,
-        owners: 1,
-        editors: 1,
-        viewers: 1,
         _id: 0,
+        __v: 0,
       }
     );
 
@@ -133,65 +153,100 @@ export const getProjectUsers = async (req, res) => {
   }
 };
 
-// UPDATE PROJECT ACCESS - PROJECT OWNER
-export const updateProjectAccess = async (req, res) => {
+
+// GET ALL PROJECTS UNDER YOU - ANY ADMIN
+export const getAdminProjects = async (req, res) => {
+  try {
+    const email = req.session.username;
+
+    const result = await Project.find({
+      $or: [
+        { owners: { $in: [email] } },
+        { editors: { $in: [email] } },
+        { viewers: { $in: [email] } },
+      ],
+    }, {
+      _id: 0,
+      __v: 0,
+    });
+
+    if (!result) {
+      return res.status(404).json({ message: "No Projects found" });
+    }
+
+    const projects = result.map((project) => {
+      let role = "";
+
+      if (project.owners.includes(email)) {
+        role = "owner";
+      } else if (project.editors.includes(email)) {
+        role = "editor";
+      } else if (project.viewers.includes(email)) {
+        role = "viewer";
+      } else {
+        role = null;
+      }
+
+      return {
+        projectID: project.projectID,
+        name: project.name,
+        type: project.type,
+        role,
+      };
+    });
+
+    res.status(200).json(projects);
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// MANUALLY ADD USER TO PROJECT - PROJECT OWNER
+export const addAdminToProject = async (req, res) => {
   try {
     const { projectID, email, role } = req.body;
     const owner = req.session.username;
 
     const project = await Project.findOne({
-      projectID,
-      owners: { $in: [owner] },
+      projectID
     });
 
+    // Check if project exists and user is owner
     if (!project) {
-      return res.status(404).json({ message: "No Project Found / Access Denied" });
-    }
-
-    // Check if user exists
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-    console.log("user", user);
-
-    // Check if company is same
-    if (user.companyID !== project.companyID) {
       return res
-        .status(400)
-        .json({ message: "User and project are not in the same company" });
+        .status(404)
+        .json({ message: "Project not found" });
     }
 
-    // Check if user is already added to project
-    if (project.owner === email) {
-      return res.status(400).json({ message: "Email already exists as owner" });
-    }
-    if (project.editors.includes(email)) {
+    if (!project.owners.includes(owner)) {
       return res
-        .status(400)
-        .json({ message: "Email already exists as editor" });
-    }
-    if (project.viewers.includes(email)) {
-      return res
-        .status(400)
-        .json({ message: "Email already exists as viewer" });
+        .status(401)
+        .json({ message: "Unauthorized" });
     }
 
-    // Add user to project
-    if (role === "owner") {
-      project.owner = email;
-    } else if (role === "editor") {
-      project.editors.push(email);
-    } else {
-      project.viewers.push(email);
+    // Check if given email exists in same company
+    const admin = await Admin.findOne({ email });
+    if (!admin) {
+      return res.status(404).json({ message: "Email not registered" });
     }
 
+    if (admin.companyID !== project.companyID) {
+      return res.status(400).json({ message: "User does not belong to same company" });
+    }
+
+    // Check if user already exists in project
+    if (project.owners.includes(email) || project.editors.includes(email) || project.viewers.includes(email)){
+      return res.status(400).json({ message: `User already exists in project` });
+    }
+    
+    // Update Project document
+    project[role + "s"].push(email);
     await project.save();
 
     // Update User document
-    await User.updateOne(
+    await Admin.updateOne(
       { email },
-      { $addToSet: { projects: { projectID, role } } }
+      { $push: { projects: { projectID, role } } }
     );
 
     res.status(200).json({ message: "User added to project successfully" });
@@ -202,50 +257,6 @@ export const updateProjectAccess = async (req, res) => {
         .json(error.details.map((detail) => detail.message).join(", "));
     }
 
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET ALL PROJECTS UNDER A USER - ANYONE
-export const getUserProjects = async (req, res) => {
-  try {
-    const email = req.session.username;
-
-    const result = await Project.find({
-      $or: [
-        { owners: { $in: [email] } },
-        { editors: { $in: [email] } },
-        { viewers: { $in: [email] } },
-      ],
-    });
-
-    if (!result) {
-      return res.status(404).json({ message: "No Projects found" });
-    }
-
-    const projects = result.map((project) => {
-      let role = "";
-
-      if (project.owner === email) {
-        role = "owner";
-      } else if (project.editors.includes(email)) {
-        role = "editor";
-      } else {
-        role = "viewer";
-      }
-
-      return {
-        projectID: project.projectID,
-        name: project.name,
-        type: project.type,
-        companyID: project.companyID,
-        owner: project.owner,
-        role,
-      };
-    });
-
-    res.status(200).json(projects);
-  } catch (error) {
     return res.status(500).send(error.message);
   }
 };

@@ -25,11 +25,6 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    companyID: {
-      type: String,
-      trim: true,
-    },
-
     mobile: {
       type: Number,
       validate: {
@@ -49,22 +44,7 @@ const userSchema = new mongoose.Schema(
     address: {
       type: String,
       trim: true,
-    },
-
-    projects: [
-      {
-        projectID: {
-          type: String,
-          required: true,
-        },
-        
-        role: {
-          type: String,
-          required: true,
-          enum: ['owner', 'editor', 'viewer']
-        },
-      },
-    ],
+    }
   },
   { timestamps: true }
 );

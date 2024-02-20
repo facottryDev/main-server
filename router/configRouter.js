@@ -12,12 +12,11 @@ router.get("/get-player-config-from-id", getPlayerConfigFromId);
 router.get("/get-filter-id-from-params", getFilterIdFromParams);
 
 router.post("/create-mapping", createMapping);
-router.post("/update-mapping", updateMapping);
+router.patch("/update-mapping", updateMapping);
 router.delete("/delete-mapping", deleteMapping);
 
 router.get("/", (req, res) => {
     res.status(200).json({ message: "Config Router" });
   });
 
-  
 export default router;

@@ -13,19 +13,21 @@ const playerConfigSchema = new mongoose.Schema(
       required: true,
     },
 
-    params: {
-      autoplay: {
-        type: Boolean,
-        default: true,
-      },
-      controls: {
-        type: Boolean,
-        default: true,
-      },
-      customObject: {
-        type: Object,
-      }
+    autoplay: {
+      type: String,
+      default: "default",
+      enum: ["default", "true", "false"],
     },
+
+    controls: {
+      type: String,
+      default: "default",
+      enum: ["default", "true", "false"],
+    },
+    
+    customObject: {
+      type: Object,
+    }
   },
   { timestamps: true }
 );

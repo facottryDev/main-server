@@ -13,20 +13,23 @@ const appConfigSchema = new mongoose.Schema(
       required: true,
     },
 
-    params: {
-      theme: {
-        type: String,
-        required: true,
-      },
-      language: {
-        type: String,
-        required: true,
-      },
-      customObject: {
-        type: Object,
-        required: false,
-      }
+    theme: {
+      type: String,
+      default: "default",
+      enum: ["red", "blue", "green", "dark", "light", "default"],
+      trim: true,
     },
+
+    language: {
+      type: String,
+      default: "default",
+      enum: ["en", "hindi", "tamil", "default"],
+      trim: true,
+    },
+    
+    customObject: {
+      type: Object,
+    }
   },
   { timestamps: true }
 );

@@ -1,7 +1,7 @@
 import { Router } from "express";
-import { getConfigsFromFilterParams } from "../controllers/config.js";
+import { getMapping } from "../controllers/config.js";
 const router = Router();
 
-router.get("/", getConfigsFromFilterParams);
+router.get("/get-mapping", getMapping);
 
 export default router;

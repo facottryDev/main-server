@@ -8,19 +8,28 @@ const filterSchema = new mongoose.Schema(
       unique: true,
     },
 
-    params: {
-      country: {
-        type: String,
-      },
-      subscription: {
-        type: String,
-      },
-      OS: {
-        type: String,
-      },
-      OSver: {
-        type: String,
-      },
+    country: {
+      type: String,
+      default: "default",
+      enum: ["default", "IN", "US", "UK", "NZ"],
+    },
+
+    subscription: {
+      type: String,
+      default: "default",
+      enum: ["default", "FREE", "PAID"]
+    },
+
+    OS: {
+      type: String,
+      default: "default",
+      enum: ["default", "SONY", "LG"],
+    },
+    
+    OSver: {
+      type: String,
+      default: "default",
+      enum: ["default", "1", "2"]
     },
   },
   { timestamps: true }

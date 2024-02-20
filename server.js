@@ -6,6 +6,7 @@ import morgan from "morgan";
 import helmet from "helmet";
 import authRouter from "./router/authRouter.js";
 import adminRouter from "./router/adminRouter.js";
+import configRouter from "./router/configRouter.js";
 import userRouter from "./router/userRouter.js";
 import { createClient } from "redis";
 import RedisStore from "connect-redis";
@@ -65,7 +66,7 @@ mongoose
   .connect(process.env.MONG_URI)
   .then(
     app.listen(PORT, () => {
-      console.log("Connected to MongoDB")
+      console.log("Connected to MongoDB");
       if (process.env.NODE_ENV === "production") {
         console.log("Production Ready");
       } else {
@@ -84,4 +85,5 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRouter);
 app.use("/admin", adminRouter);
+app.use("/config", configRouter);
 app.use("/user", userRouter);

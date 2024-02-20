@@ -8,19 +8,26 @@ const playerConfigSchema = new mongoose.Schema(
       unique: true,
     },
 
-    params: {
-      autoplay: {
-        type: Boolean,
-        default: true,
-      },
-      controls: {
-        type: Boolean,
-        default: true,
-      },
-      customObject: {
-        type: Object,
-      }
+    projectID: {
+      type: String,
+      required: true,
     },
+
+    autoplay: {
+      type: String,
+      default: "default",
+      enum: ["default", "true", "false"],
+    },
+
+    controls: {
+      type: String,
+      default: "default",
+      enum: ["default", "true", "false"],
+    },
+    
+    customObject: {
+      type: Object,
+    }
   },
   { timestamps: true }
 );

@@ -8,7 +8,7 @@ const projectSchema = new mongoose.Schema(
       unique: true,
     },
 
-    projectName: {
+    name: {
       type: String,
       required: true,
       trim: true,
@@ -25,11 +25,12 @@ const projectSchema = new mongoose.Schema(
       required: true,
     },
 
-    owner: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    owners: [
+      {
+        type: String,
+        required: true,
+      }
+    ],
 
     editors: [
       {

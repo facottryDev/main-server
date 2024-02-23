@@ -17,6 +17,7 @@ const adminUserSchema = new mongoose.Schema(
 
     companyID: {
       type: String,
+      required: true,
       trim: true,
     },
 

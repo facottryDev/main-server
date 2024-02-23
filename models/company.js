@@ -19,6 +19,26 @@ const companySchema = new mongoose.Schema(
       trim: true,
     },
 
+    joinRequests: [
+      {
+        type: String,
+        expiresAt: {
+          type: Date,
+          default: Date.now() + 30 * 24 * 60 * 60 * 1000, // 1 month expiration
+        },
+      }
+    ],
+
+    activeInvites: [
+      {
+        type: String,
+        expiresAt: {
+          type: Date,
+          default: Date.now() + 30 * 24 * 60 * 60 * 1000, // 1 month expiration
+        },
+      }
+    ],
+
     owners: [
       {
         type: String,

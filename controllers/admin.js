@@ -650,7 +650,7 @@ export const sendCompanyInvite = async (req, res) => {
               <p>Click <a href="${inviteLink}">here</a> to join.</p>`,
     };
 
-    // await sendMail(mailOptions);
+    await sendMail(mailOptions);
     res.status(200).json({ message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)", inviteLink });
   } catch (error) {
     return res.status(500).send(error.message);

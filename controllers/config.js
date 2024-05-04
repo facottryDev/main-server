@@ -431,11 +431,6 @@ export const getMapping = async (req, res) => {
           "filter.subscription": subscription,
           "filter.OS": OS,
           "filter.OSver": OSver,
-        },
-        {
-          _id: 0,
-          appConfig: 1,
-          playerConfig: 1,
         }
       );
 

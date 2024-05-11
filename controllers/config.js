@@ -120,6 +120,64 @@ export const addPlayerConfig = async (req, res) => {
   }
 };
 
+// GET ALL APP CONFIGS - PROJECT OWNER / EDITOR / VIEWER
+export const getAllAppConfigs = async (req, res) => {
+  try {
+    const { projectID } = req.query;
+    const user = req.session.username;
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne(
+      { projectID },
+      { owners: 1, editors: 1, viewers: 1, _id: 0 }
+    );
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(user) &&
+        !project.editors.includes(user) &&
+        !project.viewers.includes(user):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const result = await AppConfig.find({ projectID }, { _id: 0, __v: 0 });
+
+    res.status(200).json(result);
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// GET ALL PLAYER CONFIGS - PROJECT OWNER / EDITOR / VIEWER
+export const getAllPlayerConfigs = async (req, res) => {
+  try {
+    const { projectID } = req.query;
+    const user = req.session.username;
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne(
+      { projectID },
+      { owners: 1, editors: 1, viewers: 1, _id: 0 }
+    );
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(user) &&
+        !project.editors.includes(user) &&
+        !project.viewers.includes(user):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const result = await PlayerConfig.find({ projectID }, { _id: 0, __v: 0 });
+
+    res.status(200).json(result);
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
 // FETCH APP CONFIG FROM APP_CONFIG_ID - PROJECT OWNER / EDITOR / VIEWER
 export const getAppConfigFromId = async (req, res) => {
   try {
@@ -214,7 +272,7 @@ export const getFilterIdFromParams = async (req, res) => {
 // MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
 export const createMapping = async (req, res) => {
   try {
-    const { projectID, appConfigID, playerConfigID, filterID } = req.body;
+    const { projectID, appConfigID, playerConfigID, filter } = req.body;
     const owner = req.session.username;
 
     switch (true) {
@@ -247,15 +305,6 @@ export const createMapping = async (req, res) => {
         updatedAt: 0,
       }
     );
-    const filter = await Filter.findOne(
-      { filterID },
-      {
-        _id: 0,
-        __v: 0,
-        createdAt: 0,
-        updatedAt: 0,
-      }
-    );
 
     switch (true) {
       case !project:
@@ -272,7 +321,7 @@ export const createMapping = async (req, res) => {
 
     const document = await Master.findOne({
       projectID: projectID,
-      "filter.filterID": filterID,
+      filter: filter,
     });
 
     if (document) {
@@ -460,6 +509,71 @@ export const getMapping = async (req, res) => {
       await client.set(key, JSON.stringify(document), 'EX', 3600);
       res.status(200).json(document);
     }
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// UPDATE APP CONFIG - PROJECT OWNER / EDITOR
+export const updateAppConfig = async (req, res) => {
+  try {
+    const { configID, language, theme, customObject } = req.body;
+    const user = req.session.username;
+
+    const appConfig = await AppConfig.findOne({ configID });
+    if (!appConfig) {
+      return res.status(404).json({ message: "AppConfig not found" });
+    }
+
+    const project = await Project.findOne(
+      { projectID: appConfig.projectID },
+      { owners: 1, editors: 1, _id: 0 }
+    );
+
+    if (!project.owners.includes(user) && !project.editors.includes(user)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const updatedAppConfig = await AppConfig.findOneAndUpdate(
+      { configID },
+      { language, theme, customObject },
+      { new: true }
+    );
+
+    res.status(200).json({ message: "Success", updatedAppConfig });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// UPDATE PLAYER CONFIG - PROJECT OWNER / EDITOR
+export const updatePlayerConfig = async (req, res) => {
+  try {
+    const { configID, autoplay, controls, customObject } = req.body;
+    const user = req.session.username;
+
+    const playerConfig = await PlayerConfig.findOne({ configID });
+
+    if (!playerConfig) {
+      return res.status(404).json({ message: "PlayerConfig not found" });
+    }
+
+    const project = await Project.findOne(
+      { projectID: playerConfig.projectID },
+      { owners: 1, editors: 1, _id: 0 }
+    );
+
+    if (!project.owners.includes(user) && !project.editors.includes(user)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const updatedPlayerConfig = await PlayerConfig.findOneAndUpdate(
+      { configID },
+      { autoplay, controls, customObject },
+      { new: true }
+    );
+
+    res.status(200).json({ message: "Success", updatedPlayerConfig });
   } catch (error) {
     return res.status(500).send(error.message);
   }

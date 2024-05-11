@@ -13,21 +13,14 @@ const playerConfigSchema = new mongoose.Schema(
       required: true,
     },
 
-    autoplay: {
-      type: String,
-      default: "default",
-      enum: ["default", "true", "false"],
+    params: {
+      type: Object,
     },
 
-    controls: {
+    demo_url: {
       type: String,
-      default: "default",
-      enum: ["default", "true", "false"],
+      default: "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
     },
-    
-    customObject: {
-      type: Object,
-    }
   },
   { timestamps: true }
 );

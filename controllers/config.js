@@ -228,7 +228,10 @@ export const createMapping = async (req, res) => {
         return res.status(400).json({ message: "FilterID is required" });
     }
 
-    const project = await Project.findOne({ projectID }, { projectID: 1, owners: 1, editors: 1 });
+    const project = await Project.findOne(
+      { projectID },
+      { projectID: 1, owners: 1, editors: 1 }
+    );
     const appConfig = await AppConfig.findOne(
       { configID: appConfigID },
       {
@@ -313,7 +316,10 @@ export const updateMapping = async (req, res) => {
         return res.status(400).json({ message: "FilterID is required" });
     }
 
-    const project = await Project.findOne({ projectID }, { projectID: 1, owners: 1, editors: 1 });
+    const project = await Project.findOne(
+      { projectID },
+      { projectID: 1, owners: 1, editors: 1 }
+    );
     const appConfig = await AppConfig.findOne(
       { configID: appConfigID },
       {
@@ -405,7 +411,7 @@ export const deleteMapping = async (req, res) => {
       return res.status(404).json({ message: "Mapping not found" });
     }
 
-    res.status(200).json({ message: "Success", });
+    res.status(200).json({ message: "Success" });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -419,42 +425,105 @@ export const getMapping = async (req, res) => {
 
     // Try getting data from cache
     const data = await client.get(key);
-    console.log(data)
+    console.log(data);
 
     if (data) {
       return res.status(200).json(JSON.parse(data));
     } else {
-      const document = await Master.findOne(
-        {
-          projectID,
-          "filter.country": country,
-          "filter.subscription": subscription,
-          "filter.OS": OS,
-          "filter.OSver": OSver,
-        }
-      );
+      const document = await Master.findOne({
+        projectID,
+        "filter.country": country,
+        "filter.subscription": subscription,
+        "filter.OS": OS,
+        "filter.OSver": OSver,
+      });
 
       if (!document) {
         const defaultDoc = {
-          "appConfig": {
-            "configID": "AC_1",
-            "theme": "default",
-            "language": "default"
+          appConfig: {
+            configID: "AC_1",
+            theme: "default",
+            language: "default",
           },
-          "playerConfig": {
-            "configID": "PC_1",
-            "autoplay": "default",
-            "controls": "default"
+          playerConfig: {
+            configID: "PC_1",
+            autoplay: "default",
+            controls: "default",
           },
-        }
+        };
 
-        return res.status(404).json({ message: "Mapping not found", defaultDoc});
+        return res
+          .status(404)
+          .json({ message: "Mapping not found", defaultDoc });
       }
 
       // Store document in cache
-      await client.set(key, JSON.stringify(document), 'EX', 3600);
+      await client.set(key, JSON.stringify(document), "EX", 3600);
       res.status(200).json(document);
     }
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+export const updateAppConfig = async (req, res) => {
+  try {
+    const { configID, language, theme, customObject } = req.body;
+    const user = req.session.username;
+
+    const appConfig = await AppConfig.findOne({ configID });
+    if (!appConfig) {
+      return res.status(404).json({ message: "AppConfig not found" });
+    }
+
+    const project = await Project.findOne(
+      { projectID: appConfig.projectID },
+      { owners: 1, editors: 1, _id: 0 }
+    );
+
+    if (!project.owners.includes(user) && !project.editors.includes(user)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const updatedAppConfig = await AppConfig.findOneAndUpdate(
+      { configID },
+      { language, theme, customObject },
+      { new: true }
+    );
+
+    res.status(200).json({ message: "Success", updatedAppConfig });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+export const updatePlayerConfig = async (req, res) => {
+  try {
+    const { configID, autoplay, controls, customObject } = req.body;
+    const user = req.session.username;
+
+    const playerConfig = await PlayerConfig.findOne({ configID });
+
+    if (!playerConfig) {
+      return res.status(404).json({ message: "PlayerConfig not found" });
+    }
+
+    const project = await Project.findOne(
+      { projectID: playerConfig.projectID },
+      { owners: 1, editors: 1, _id: 0 }
+    );
+
+    if (!project.owners.includes(user) && !project.editors.includes(user)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const updatedPlayerConfig = await PlayerConfig.findOneAndUpdate(
+      { configID },
+      { autoplay, controls, customObject },
+      { new: true }
+    );
+
+    res.status(200).json({ message: "Success", updatedPlayerConfig });
   } catch (error) {
     return res.status(500).send(error.message);
   }

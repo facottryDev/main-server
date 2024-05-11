@@ -8,6 +8,15 @@ const appConfigSchema = new mongoose.Schema(
       unique: true,
     },
 
+    name: {
+      type: String,
+      required: true,
+    },
+
+    desc: {
+      type: String
+    },
+
     projectID: {
       type: String,
       required: true,

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addAppConfig, addPlayerConfig, getAppConfigFromId, getFilterIdFromParams, getPlayerConfigFromId, createMapping, updateMapping, deleteMapping, updateAppConfig, updatePlayerConfig, getAllAppConfigs, getAllPlayerConfigs } from "../controllers/config.js";
+import { addAppConfig, addPlayerConfig, getAppConfigFromId, getFilterIdFromParams, getPlayerConfigFromId, createMapping, deleteMapping, updateAppConfig, updatePlayerConfig, getAllAppConfigs, getAllPlayerConfigs } from "../controllers/config.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
 
@@ -16,7 +16,6 @@ router.get("/get-player-config-from-id", getPlayerConfigFromId);
 router.get("/get-filter-id-from-params", getFilterIdFromParams);
 
 router.post("/create-mapping", createMapping);
-router.patch("/update-mapping", updateMapping);
 router.delete("/delete-mapping", deleteMapping);
 
 router.get("/", (req, res) => {

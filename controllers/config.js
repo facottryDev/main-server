@@ -380,7 +380,7 @@ export const createMapping = async (req, res) => {
 // DELETE MAPPING FROM MASTER - PROJECT OWNER / EDITOR
 export const deleteMapping = async (req, res) => {
   try {
-    const { projectID, filterID } = req.body;
+    const { projectID, filter } = req.body;
     const owner = req.session.username;
 
     // Check if Project exists & Authorized
@@ -397,8 +397,7 @@ export const deleteMapping = async (req, res) => {
     }
 
     const document = await Master.findOneAndDelete({
-      projectID,
-      "filter.filterID": filterID,
+      projectID, filter
     });
 
     if (!document) {

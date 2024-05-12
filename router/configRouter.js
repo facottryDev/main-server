@@ -16,7 +16,7 @@ router.get("/get-player-config-from-id", getPlayerConfigFromId);
 router.get("/get-filter-id-from-params", getFilterIdFromParams);
 
 router.post("/create-mapping", createMapping);
-router.delete("/delete-mapping", deleteMapping);
+router.post("/delete-mapping", deleteMapping);
 
 router.get("/", (req, res) => {
     res.status(200).json({ message: "Config Router" });

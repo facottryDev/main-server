@@ -13,7 +13,8 @@ import {
   getJoinCompanyRequests,
   getJoinProjectRequests,
   acceptJoinCompanyRequest,
-  sendCompanyInvite
+  sendCompanyInvite,
+  sendProjectInvite
 } from "../controllers/admin.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -37,6 +38,7 @@ router.get("/get-join-project-req", getJoinProjectRequests);
 router.post("/accept-join-company-request", acceptJoinCompanyRequest);
 
 router.post("/send-company-invite", sendCompanyInvite);
+router.post("/send-project-invite", sendProjectInvite);
 
 router.get("/", (req, res) => {
   res.status(200).json({ message: "Admin Router" });

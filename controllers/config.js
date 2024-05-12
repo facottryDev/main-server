@@ -5,6 +5,7 @@ import PlayerConfig from "../models/playerConfig.js";
 import Master from "../models/master.js";
 import { generateID } from "../lib/helpers.js";
 import { redisClient as client } from "../server.js";
+import { config } from "dotenv";
 
 // CREATE NEW APP CONFIG - PROJECT OWNER / EDITOR
 export const addAppConfig = async (req, res) => {
@@ -12,7 +13,16 @@ export const addAppConfig = async (req, res) => {
     const { projectID, name, desc, params } = req.body;
     const owner = req.session.username;
 
-    // Check if Project exists & Authorized
+    switch (true) {
+      case !projectID:
+        return res.status(400).json({ message: "ProjectID is required" });
+      case !name:
+        return res.status(400).json({ message: "Name is required" });
+      case !params || Object.keys(params).length === 0:
+        return res.status(400).json({ message: "Params are required" });
+    }
+
+    // Check if Project exists & user is authorized
     const project = await Project.findOne(
       {
         projectID,
@@ -176,6 +186,57 @@ export const updatePlayerConfig = async (req, res) => {
     res.status(200).json({ message: "Success", updatedPlayerConfig });
   } catch (error) {
     return res.status(500).send(error.message);
+  }
+};
+
+export const deleteConfig = async (req, res) => {
+  try {
+    const { configID } = req.query;
+    const user = req.session.username;
+
+    if (configID.startsWith("ac")) {
+      const appConfig = await AppConfig.findOne({ configID });
+
+      if (!appConfig) {
+        return res.status(404).json({ message: "AppConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: appConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      await AppConfig.findOneAndDelete({ configID });
+    }
+
+    if (configID.startsWith("pc")) {
+      const playerConfig = await PlayerConfig.findOne({
+        configID,
+      });
+
+      if (!playerConfig) {
+        return res.status(404).json({ message: "PlayerConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: playerConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      await PlayerConfig.findOneAndDelete({ configID });
+    }
+
+    res.status(200).json({ message: "Success" });
+  } catch (error) {
+    res.status(500).send(error.message);
   }
 };
 
@@ -360,7 +421,8 @@ export const createMapping = async (req, res) => {
     // Create new master document or update existing
     const document = await Master.findOneAndUpdate(
       {
-        projectID, filter
+        projectID,
+        filter,
       },
       {
         projectID,
@@ -397,7 +459,8 @@ export const deleteMapping = async (req, res) => {
     }
 
     const document = await Master.findOneAndDelete({
-      projectID, filter
+      projectID,
+      filter,
     });
 
     if (!document) {

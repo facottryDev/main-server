@@ -8,86 +8,80 @@ const masterSchema = new mongoose.Schema(
     },
 
     filter: {
-      filterID: {
-        type: String,
-        required: true,
-      },
-
       country: {
         type: String,
         required: true,
-        default: "ALL",
+        default: "",
       },
-  
+
       subscription: {
         type: String,
         required: true,
-        default: "ALL",
+        default: "",
       },
-  
-      OS: {
+
+      os: {
         type: String,
         required: true,
-        default: "ALL",
+        default: "",
       },
-  
-      OSver: {
+
+      osver: {
         type: String,
         required: true,
-        default: "ALL",
+        default: "",
       },
     },
 
     appConfig: {
       configID: {
         type: String,
-        required: true,
       },
-  
-      theme: {
-        type: String,
-        required: true,
-        enum: ["red", "blue", "green", "dark", "light", "default"],
-        trim: true,
-      },
-  
-      language: {
-        type: String,
-        required: true,
-        enum: ["en", "hindi", "tamil", "default"],
-        trim: true,
-      },
-      
-      customObject: {
-        type: Object,
-      }
-    },
 
+      name: {
+        type: String,
+        required: true,
+      },
+
+      desc: {
+        type: String,
+      },
+
+      params: {
+        type: Object,
+      },
+
+      demo_url: {
+        type: String,
+        default:
+          "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
+      },
+    },
     playerConfig: {
       configID: {
         type: String,
+      },
+  
+      name: {
+        type: String,
         required: true,
       },
   
-      autoplay: {
-        type: String,
-        required: true,
-        enum: ["default", "true", "false"],
+      desc: {
+        type: String
       },
   
-      controls: {
-        type: String,
-        required: true,
-        enum: ["default", "true", "false"],
-      },
-      
-      customObject: {
+      params: {
         type: Object,
-      }
-    }
+      },
+  
+      demo_url: {
+        type: String,
+        default: "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
+      },
+    },
   },
   { timestamps: true }
 );
 
-export default mongoose.model.master ||
-mongoose.model("master", masterSchema);
+export default mongoose.model.master || mongoose.model("master", masterSchema);

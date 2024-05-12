@@ -8,31 +8,32 @@ const appConfigSchema = new mongoose.Schema(
       unique: true,
     },
 
+    name: {
+      type: String,
+      required: true,
+    },
+
+    desc: {
+      type: String
+    },
+
     projectID: {
       type: String,
       required: true,
     },
 
-    theme: {
-      type: String,
-      default: "default",
-      enum: ["red", "blue", "green", "dark", "light", "default"],
-      trim: true,
+    params: {
+      type: Object,
     },
 
-    language: {
+    demo_url: {
       type: String,
-      default: "default",
-      enum: ["en", "hindi", "tamil", "default"],
-      trim: true,
+      default:
+        "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
     },
-    
-    customObject: {
-      type: Object,
-    }
   },
   { timestamps: true }
 );
 
 export default mongoose.model.appconfig ||
-mongoose.model("appconfig", appConfigSchema);
+  mongoose.model("appconfig", appConfigSchema);

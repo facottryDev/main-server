@@ -194,6 +194,7 @@ export const getAdminProjects = async (req, res) => {
 
       return {
         projectID: project.projectID,
+        companyID: project.companyID,
         name: project.name,
         type: project.type,
         role,
@@ -509,11 +510,9 @@ export const acceptJoinProjectRequest = async (req, res) => {
       case !project:
         return res.status(404).json({ message: "Project not found" });
       case !project.owners.includes(owner):
-        return res
-          .status(401)
-          .json({
-            message: "Unauthorized. You are not the owner of this project",
-          });
+        return res.status(401).json({
+          message: "Unauthorized. You are not the owner of this project",
+        });
     }
 
     // Check if user has sent a request
@@ -555,11 +554,9 @@ export const rejectJoinProjectRequest = async (req, res) => {
       case !project:
         return res.status(404).json({ message: "Project not found" });
       case !project.owners.includes(owner):
-        return res
-          .status(401)
-          .json({
-            message: "Unauthorized. You are not the owner of this project",
-          });
+        return res.status(401).json({
+          message: "Unauthorized. You are not the owner of this project",
+        });
     }
 
     // Check if user has sent a request
@@ -711,7 +708,12 @@ export const sendProjectInvite = async (req, res) => {
     };
 
     // await sendMail(mailOptions);
-    res.status(200).json({ message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)", inviteLink });
+    res
+      .status(200)
+      .json({
+        message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)",
+        inviteLink,
+      });
   } catch (error) {
     return res.status(500).send(error.message);
   }

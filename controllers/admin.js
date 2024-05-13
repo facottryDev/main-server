@@ -3,6 +3,19 @@ import Company from "../models/company.js";
 import Project from "../models/project.js";
 import Admin from "../models/admin.js";
 
+
+// CHECK IF USER IS ADMIN
+export const isAdmin = async (req, res) => {
+  const email = req.session.username;
+  const admin = await Admin.findOne({ email });
+
+  if (!admin) {
+    return res.status(403).json("Not Admin");
+  }
+
+  res.status(200).json(admin.companyID);
+};
+
 // ADD COMPANY - COMPANY OWNER
 export const addCompany = async (req, res) => {
   try {

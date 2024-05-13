@@ -14,7 +14,8 @@ import {
   getJoinProjectRequests,
   acceptJoinCompanyRequest,
   sendCompanyInvite,
-  sendProjectInvite
+  sendProjectInvite,
+  isAdmin
 } from "../controllers/admin.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -22,6 +23,7 @@ const router = Router();
 router.use(isAuth);
 
 // USER BASED ROUTES
+router.get("/is-admin", isAdmin)
 router.post("/add-company", addCompany);
 router.post("/add-project", addProject);
 router.post("/add-admin-to-project", addAdminToProject);

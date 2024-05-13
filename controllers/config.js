@@ -5,7 +5,6 @@ import PlayerConfig from "../models/playerConfig.js";
 import Master from "../models/master.js";
 import { generateID } from "../lib/helpers.js";
 import { redisClient as client } from "../server.js";
-import { config } from "dotenv";
 
 // CREATE NEW APP CONFIG - PROJECT OWNER / EDITOR
 export const addAppConfig = async (req, res) => {

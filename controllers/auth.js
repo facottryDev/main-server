@@ -394,7 +394,7 @@ export const updateUserDetails = async (req, res) => {
     const { name, mobile, profilePic, address } = req.body;
     const email = req.session.username;
 
-    const result = await users.updateOne(
+    const result = await users.findOneAndUpdate(
       { email },
       {
         $set: {
@@ -403,11 +403,12 @@ export const updateUserDetails = async (req, res) => {
           profilePic,
           address,
         },
-      }
-    )
+      },
+      { new: true, projection: { _id: 0, password: 0, __v: 0 } }
+    );
 
     if (result) {
-      return res.status(200).json({ message: "User details updated" });
+      return res.status(200).json(result);
     } else {
       return res.status(500).send("Error updating user details");
     }

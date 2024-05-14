@@ -3,30 +3,82 @@ import Company from "../models/company.js";
 import Project from "../models/project.js";
 import Admin from "../models/admin.js";
 
+// GET ADMIN INFO
+export const getAdmin = async (req, res) => {
+  try {
+    const email = req.session.username;
 
-// CHECK IF USER IS ADMIN
-export const isAdmin = async (req, res) => {
-  const email = req.session.username;
-  const admin = await Admin.findOne({ email });
+    const company = await Company.findOne({
+      $or: [{ owners: email }, { employees: email }],
+    });
 
-  if (!admin) {
-    return res.status(403).json("Not Admin");
+    const projects = await Project.find({
+      $or: [{ owners: email }, { editors: email }, { viewers: email }],
+    });
+
+    if (!company) {
+      return res.status(403).json({
+        code: "NO_COMPANY",
+        message: "You are not part of any company",
+      });
+    }
+
+    const companyDetails = {
+      companyID: company.companyID,
+      name: company.name,
+      address: company.address,
+      role: company.owners.includes(email) ? "owner" : "employee",
+      joinRequests: company.owners.includes(email) ? company.joinRequests : [],
+      activeInvites: company.owners.includes(email)
+        ? company.activeInvites
+        : [],
+      owners: company.owners.includes(email) ? company.owners : [],
+      employees: company.employees.includes(email) ? company.employees : [],
+    };
+
+    if (!projects.length) {
+      return res.status(403).json({
+        code: "NO_PROJECT",
+        message: "You are not part of any project",
+        company: companyDetails,
+      });
+    }
+
+    const projectDetails = projects.map((project) => ({
+      projectID: project.projectID,
+      name: project.name,
+      type: project.type,
+      role: project.owners.includes(email)
+        ? "owner"
+        : project.editors.includes(email)
+        ? "editor"
+        : "viewer",
+      joinRequests: project.owners.includes(email) ? project.joinRequests : [],
+      activeInvites: project.owners.includes(email)
+        ? project.activeInvites
+        : [],
+      owners: project.owners.includes(email) ? project.owners : [],
+      editors: project.editors.includes(email) ? project.editors : [],
+      viewers: project.viewers.includes(email) ? project.viewers : [],
+    }));
+
+    return res
+      .status(200)
+      .json({ company: companyDetails, projects: projectDetails });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
-
-  res.status(200).json(admin.companyID);
 };
 
 // ADD COMPANY - COMPANY OWNER
 export const addCompany = async (req, res) => {
   try {
     const { name, address } = req.body;
-    const owner = req.session.username;
-
-    const companyID = generateID(name);
+    const email = req.session.username;
 
     // Check if company already exists
     const companyExists = await Company.findOne({
-      owners: { $in: [owner] },
+      owners: { $in: [email] },
     });
 
     if (companyExists) {
@@ -37,29 +89,33 @@ export const addCompany = async (req, res) => {
     }
 
     // Create new company
+    const companyID = generateID(name);
+
     const newCompany = new Company({
       companyID,
       name,
       address,
-      owners: [owner],
+      owners: [email],
     });
 
-    await newCompany.save();
+    const company = await newCompany.save();
 
-    // Create / Update Admin document
-    const admin = await Admin.findOne({ email: owner });
-    if (admin) {
-      admin.companyID = companyID;
-      await admin.save();
-    } else {
-      const newAdmin = new Admin({
-        email: owner,
-        companyID,
-      });
-      await newAdmin.save();
-    }
+    const companyDetails = {
+      companyID: company.companyID,
+      name: company.name,
+      address: company.address,
+      role: company.owners.includes(email) ? "owner" : "employee",
+      joinRequests: company.owners.includes(email) ? company.joinRequests : [],
+      activeInvites: company.owners.includes(email)
+        ? company.activeInvites
+        : [],
+      owners: company.owners.includes(email) ? company.owners : [],
+      employees: company.employees.includes(email) ? company.employees : [],
+    };
 
-    res.status(200).json({ message: "Company added successfully", companyID });
+    return res
+      .status(200)
+      .json({ message: "Company added successfully", company: companyDetails });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -118,103 +174,6 @@ export const addProject = async (req, res) => {
     );
 
     res.status(200).json({ message: "Project added successfully" });
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET YOUR COMPANY'S DETAILS - COMPANY OWNER
-export const getCompanyDetails = async (req, res) => {
-  try {
-    const email = req.session.username;
-
-    const result = await Company.findOne(
-      { owners: { $in: [email] } },
-      { _id: 0, __v: 0 }
-    );
-
-    if (!result) {
-      return res.status(404).json({ message: "No company under this email" });
-    }
-
-    res.status(200).json(result);
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET A PROJECT'S DETAILS - PROJECT OWNER
-export const getProjectDetails = async (req, res) => {
-  try {
-    const email = req.session.username;
-
-    const { projectID } = req.query;
-    const result = await Project.findOne(
-      { projectID, owners: { $in: [email] } },
-      {
-        _id: 0,
-        __v: 0,
-      }
-    );
-
-    if (!result) {
-      return res
-        .status(404)
-        .json({ message: "No Project Found / Access Denied" });
-    }
-
-    res.status(200).json(result);
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET ALL PROJECTS UNDER YOU - ANY ADMIN
-export const getAdminProjects = async (req, res) => {
-  try {
-    const email = req.session.username;
-
-    const result = await Project.find(
-      {
-        $or: [
-          { owners: { $in: [email] } },
-          { editors: { $in: [email] } },
-          { viewers: { $in: [email] } },
-        ],
-      },
-      {
-        _id: 0,
-        __v: 0,
-      }
-    );
-
-    if (!result) {
-      return res.status(404).json({ message: "No Projects found" });
-    }
-
-    const projects = result.map((project) => {
-      let role = "";
-
-      if (project.owners.includes(email)) {
-        role = "owner";
-      } else if (project.editors.includes(email)) {
-        role = "editor";
-      } else if (project.viewers.includes(email)) {
-        role = "viewer";
-      } else {
-        role = null;
-      }
-
-      return {
-        projectID: project.projectID,
-        companyID: project.companyID,
-        name: project.name,
-        type: project.type,
-        role,
-      };
-    });
-
-    res.status(200).json(projects);
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -423,6 +382,70 @@ export const rejectJoinCompanyRequest = async (req, res) => {
   }
 };
 
+// CREATE A JOIN REQUEST TO PROJECT - ADMIN
+export const createJoinProjectRequest = async (req, res) => {
+  try {
+    const email = req.session.username;
+    const { projectID } = req.body;
+
+    // Check if user is in a company
+    const company = await Company.findOne({
+      $or: [{ owners: email }, { employees: email }],
+    });
+
+    if (!company) {
+      return res
+        .status(403)
+        .json({ code: "NO_COMPANY",message: "You don't belong to any company" });
+    }
+
+    // Check if project exists
+    const project = await Project.findOne({
+      projectID,
+    });
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if user's company is same as project's company
+    if (project.companyID !== company.companyID) {
+      return res.status(403).json({
+        code: "DIFFERENT_COMPANY",
+        message: "This project does not belong to the your company",
+      });
+    }
+
+    // Check if user is already part of the project
+    if (
+      project.owners.includes(email) ||
+      project.editors.includes(email) ||
+      project.viewers.includes(email)
+    ) {
+      return res.status(400).json({
+        message: "You are already part of this project",
+        role: project.owners.includes(email)
+          ? "owner"
+          : project.editors.includes(email)
+          ? "editor"
+          : "viewer",
+      });
+    }
+
+    // Check if user has already sent a request
+    if (project.joinRequests.includes(email))
+      return res.status(400).json({ message: "Request already exists" });
+
+    // Update Project document
+    project.joinRequests.push(email);
+    await project.save();
+
+    res.status(200).json({ message: "Request sent successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
 // LEAVE COMPANY - ADMIN
 export const leaveCompany = async (req, res) => {
   try {
@@ -453,36 +476,6 @@ export const leaveCompany = async (req, res) => {
     await Admin.deleteOne({ email });
 
     res.status(200).json({ message: "Left company successfully" });
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// CREATE A JOIN REQUEST TO PROJECT - ADMIN
-export const createJoinProjectRequest = async (req, res) => {
-  try {
-    const email = req.session.username;
-    const { projectID } = req.body;
-
-    // Check if user is already part of this project
-    const project = await Project.findOne({
-      projectID,
-      $or: [{ owners: email }, { editors: email }, { viewers: email }],
-    });
-
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    // Check if user has already sent a request to this project
-    if (project.joinRequests.includes(email))
-      return res.status(400).json({ message: "Request already exists" });
-
-    // Update Project document
-    project.joinRequests.push(email);
-    await project.save();
-
-    res.status(200).json({ message: "Request sent successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -624,44 +617,79 @@ export const leaveProject = async (req, res) => {
 export const sendCompanyInvite = async (req, res) => {
   try {
     const owner = req.session.username;
-    const { email } = req.body;
+    const { employees } = req.body;
 
+    // Check if company exists for the owner
     const company = await Company.findOne({
       owners: { $in: [owner] },
     });
 
-    // Check if company exists for the owner
     if (!company) {
       return res.status(404).json({ message: "You don't own any company" });
     }
 
-    // Check if user is already part of the company
-    if (company.owners.includes(email) || company.employees.includes(email)) {
-      return res.status(400).json({
-        message: "User already part of this company",
-        role: company.owners.includes(email) ? "owner" : "employee",
-      });
+    // Create array of employees from comma separated string
+    const employeesArray = employees.split(",").map((email) => email.trim());
+
+    const promises = employeesArray.map(async (email) => {
+      // Generate Invite for each employee
+      const inviteCode = generateID(company.name + "_invite_" + email);
+      const inviteLink = `${process.env.SERVER_URL}/admin/invite/company/${inviteCode}`;
+
+      company.activeInvites.push(inviteCode);
+      await company.save();
+
+      // Send Email
+      const mailOptions = {
+        from: " " + process.env.EMAIL,
+        to: email,
+        subject: `Invitation to join ${company.name}`,
+        html: `<p>You have been invited to join ${company.name}.</p>
+                <p>Click <a href="${inviteLink}">here</a> to join.</p>`,
+      };
+
+      // await sendMail(mailOptions);
+    });
+
+    await Promise.all(promises);
+
+    return res.status(200).json({
+      message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)",
+    });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// VERIFY INVITE & JOIN COMPANY
+export const verifyCompanyInvite = async (req, res) => {
+  try {
+    const { inviteCode } = req.query;
+
+    const company = await Company.findOne({
+      activeInvites: { $in: [inviteCode] },
+    });
+
+    if (!company) {
+      return res.status(404).json({ message: "Invalid invite link" });
     }
 
-    // Send email to user
-    const inviteCode = generateID(company.name + "_invite");
-    const inviteLink = `http://localhost:3000/invite/${inviteCode}`;
+    // Check if user is already part of a company
+    const isAdmin = await Company.findOne({
+      $or: [{ owners: email }, { employees: email }],
+    });
 
-    // Add invite to company document
-    company.activeInvites.push(inviteCode);
-    await company.save();
+    if (isAdmin)
+      return res.status(400).json({
+        message: "You are already part of a company",
+        companyID: isAdmin.companyID,
+        role: isAdmin.owners.includes(email) ? "owner" : "employee",
+      });
 
-    // Send Email
-    const mailOptions = {
-      from: " " + process.env.EMAIL,
-      to: email,
-      subject: `Invitation to join ${company.name}`,
-      html: `<p>You have been invited to join ${company.name}.</p>
-              <p>Click <a href="${inviteLink}">here</a> to join.</p>`,
-    };
+    // Update Company document
+    company.employees.push(email);
 
-    await sendMail(mailOptions);
-    res.status(200).json({ message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)", inviteLink });
+    res.status(200).json({ message: "Joined company successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -721,12 +749,10 @@ export const sendProjectInvite = async (req, res) => {
     };
 
     // await sendMail(mailOptions);
-    res
-      .status(200)
-      .json({
-        message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)",
-        inviteLink,
-      });
+    res.status(200).json({
+      message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)",
+      inviteLink,
+    });
   } catch (error) {
     return res.status(500).send(error.message);
   }

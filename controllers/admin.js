@@ -32,8 +32,8 @@ export const getAdmin = async (req, res) => {
       activeInvites: company.owners.includes(email)
         ? company.activeInvites
         : [],
-      owners: company.owners.includes(email) ? company.owners : [],
-      employees: company.employees.includes(email) ? company.employees : [],
+      owners: company.owners,
+      employees: company.owners.includes(email) ? company.employees : [],
     };
 
     if (!projects.length) {
@@ -121,6 +121,62 @@ export const addCompany = async (req, res) => {
   }
 };
 
+// DEACTIVATE COMPANY - COMPANY OWNER
+export const deactivateCompany = async (req, res) => {
+  try {
+    const owner = req.session.username;
+
+    const company = await Company.findOne({
+      owners: { $in: [owner] },
+    });
+
+    // Check if company exists
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    // Update the status of all projects
+    await Project.updateMany(
+      { companyID: company.companyID },
+      { status: "inactive" }
+    );
+
+    // Update the status of the company
+    company.status = "inactive";
+    await company.save();
+
+    res.status(200).json({ message: "Company deactivated successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// UPDATE COMPANY - COMPANY OWNER
+export const updateCompany = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { name, address } = req.body;
+
+    const company = await Company.findOne({
+      owners: { $in: [owner] },
+    });
+
+    // Check if company exists
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    // Update the company details
+    company.name = name;
+    company.address = address;
+    await company.save();
+
+    res.status(200).json({ message: "Company updated successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
 //ADD PROJECT - COMPANY OWNER
 export const addProject = async (req, res) => {
   try {
@@ -144,10 +200,12 @@ export const addProject = async (req, res) => {
     const projectExists = await Project.findOne({
       companyID: company.companyID,
       name,
+      type,
     });
+
     if (projectExists) {
       return res.status(409).json({
-        message: "A project with same name already exists",
+        message: "A project with same configuration already exists",
         projectID: projectExists.projectID,
       });
     }
@@ -167,13 +225,87 @@ export const addProject = async (req, res) => {
     company.projects.push(projectID);
     await company.save();
 
-    // Update Admin document
-    await Admin.updateOne(
-      { email: owner },
-      { $push: { projects: { projectID, role: "owner" } } }
-    );
+    const projectDetails = {
+      projectID: newProject.projectID,
+      name: newProject.name,
+      type: newProject.type,
+      role: "owner",
+      joinRequests: [],
+      activeInvites: [],
+      owners: [owner],
+      editors: [],
+      viewers: [],
+    };
 
-    res.status(200).json({ message: "Project added successfully" });
+    res
+      .status(200)
+      .json({ message: "Project added successfully", project: projectDetails });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+//DEACTIVATE PROJECT - PROJECT OWNER
+export const deactivateProject = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID } = req.body;
+
+    const project = await Project.findOne({
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Update the status of the project
+    project.status = "inactive";
+    await project.save();
+
+    res.status(200).json({ message: "Project deactivated successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// UPDATE PROJECT - PROJECT OWNER
+export const updateProject = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { companyID, projectID, name, type } = req.body;
+
+    const projectExists = await Project.findOne({
+      companyID,
+      name,
+      type,
+    });
+    
+    if (projectExists) {
+      return res.status(409).json({
+        message: "A project with same configuration already exists in the company",
+      });
+    }
+
+    const project = await Project.findOne({
+      projectID
+    });
+
+    if(!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    
+    if(!project.owners.includes(owner)) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    project.name = name;
+    project.type = type;
+    await project.save();
+
+    res.status(200).json({ message: "Project updated successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -394,9 +526,10 @@ export const createJoinProjectRequest = async (req, res) => {
     });
 
     if (!company) {
-      return res
-        .status(403)
-        .json({ code: "NO_COMPANY",message: "You don't belong to any company" });
+      return res.status(403).json({
+        code: "NO_COMPANY",
+        message: "You don't belong to any company",
+      });
     }
 
     // Check if project exists
@@ -463,19 +596,27 @@ export const leaveCompany = async (req, res) => {
     }
 
     // Update Company document
-    if (company.owners.includes(email)) {
-      company.owners = company.owners.filter((owner) => owner !== email);
-    } else {
-      company.employees = company.employees.filter(
-        (employee) => employee !== email
-      );
-    }
+    company.owners = company.owners.filter((owner) => owner !== email);
+    company.employees = company.employees.filter(
+      (employee) => employee !== email
+    );
     await company.save();
 
-    // Delete Admin document
-    await Admin.deleteOne({ email });
+    // Update projects of the user
+    await Project.updateMany(
+      { companyID: company.companyID },
+      {
+        $pull: {
+          owners: email,
+          editors: email,
+          viewers: email,
+          joinRequests: email,
+          activeInvites: email,
+        },
+      }
+    );
 
-    res.status(200).json({ message: "Left company successfully" });
+    res.status(200).json({ message: "Success!" });
   } catch (error) {
     return res.status(500).send(error.message);
   }

@@ -14,6 +14,12 @@ const companySchema = new mongoose.Schema(
       trim: true,
     },
 
+    status: {
+      type: String,
+      default: "active",
+      enum: ["active", "inactive"],
+    },
+
     address: {
       type: String,
       trim: true,

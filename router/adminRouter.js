@@ -14,6 +14,10 @@ import {
   addProject,
   addCompany,
   getAdmin,
+  deactivateCompany,
+  deactivateProject,
+  updateCompany,
+  updateProject,
 } from "../controllers/admin.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -24,7 +28,13 @@ router.get("/get-admin", getAdmin);
 
 // WHEN USER ADDS COMPANY/PROJECT
 router.post("/add-company", addCompany);
+router.delete("/deactivate-company", deactivateCompany);
+router.post("/update-company", updateCompany);
+
 router.post("/add-project", addProject);
+router.delete("/deactivate-project", deactivateProject);
+router.post("/update-project", updateProject);
+
 
 // WHEN USER REQUESTS TO JOIN OR LEAVE COMPANY/PROJECT
 router.post("/join-company", createJoinCompanyRequest);

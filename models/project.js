@@ -20,6 +20,12 @@ const projectSchema = new mongoose.Schema(
       enum: ["PROD", "UAT", "DEV", "TEST"],
     },
 
+    status: {
+      type: String,
+      default: "active",
+      enum: ["active", "inactive"],
+    },
+
     companyID: {
       type: String,
       required: true,

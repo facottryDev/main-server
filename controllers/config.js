@@ -23,7 +23,7 @@ export const addAppConfig = async (req, res) => {
 
     // Check if Project exists & user is authorized
     const project = await Project.findOne(
-      {
+      { status:"active",
         projectID,
       },
       { name: 1, owners: 1, editors: 1, _id: 0 }
@@ -74,7 +74,7 @@ export const addPlayerConfig = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      {
+      { status:"active",
         projectID,
       },
       { name: 1, owners: 1, editors: 1, _id: 0 }
@@ -135,7 +135,7 @@ export const updateAppConfig = async (req, res) => {
     }
 
     const project = await Project.findOne(
-      { projectID: appConfig.projectID },
+      { status:"active", projectID: appConfig.projectID },
       { owners: 1, editors: 1, _id: 0 }
     );
 
@@ -168,7 +168,7 @@ export const updatePlayerConfig = async (req, res) => {
     }
 
     const project = await Project.findOne(
-      { projectID: playerConfig.projectID },
+      { status:"active", projectID: playerConfig.projectID },
       { owners: 1, editors: 1, _id: 0 }
     );
 
@@ -247,7 +247,7 @@ export const getAllAppConfigs = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      { projectID },
+      { status:"active", projectID },
       { owners: 1, editors: 1, viewers: 1, _id: 0 }
     );
 
@@ -276,7 +276,7 @@ export const getAllPlayerConfigs = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      { projectID },
+      { status:"active", projectID },
       { owners: 1, editors: 1, viewers: 1, _id: 0 }
     );
 
@@ -305,7 +305,7 @@ export const getAppConfigFromId = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      { projectID },
+      { status:"active", projectID },
       { owners: 1, editors: 1, viewers: 1, _id: 0 }
     );
 
@@ -344,7 +344,7 @@ export const getPlayerConfigFromId = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      { projectID },
+      { status:"active", projectID },
       { owners: 1, editors: 1, viewers: 1, _id: 0 }
     );
 
@@ -406,7 +406,7 @@ export const createMapping = async (req, res) => {
     }
 
     const project = await Project.findOne(
-      { projectID },
+      { status:"active", projectID },
       { owners: 1, editors: 1 }
     );
 
@@ -446,7 +446,7 @@ export const deleteMapping = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      { projectID },
+      { status:"active", projectID },
       { owners: 1, editors: 1, _id: 0 }
     );
 

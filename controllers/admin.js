@@ -13,7 +13,11 @@ export const getAdmin = async (req, res) => {
     });
 
     const projects = await Project.find({
-      $or: [{ owners: email }, { editors: email }, { viewers: email }],
+      $or: [
+        { owners: email },
+        { editors: email },
+        { viewers: email },
+      ],
     });
 
     if (!company) {
@@ -135,7 +139,7 @@ export const deactivateCompany = async (req, res) => {
       return res.status(404).json({ message: "Company not found" });
     }
 
-    // Update the status of all projects
+    // Update the status of all projects under the company
     await Project.updateMany(
       { companyID: company.companyID },
       { status: "inactive" }
@@ -172,6 +176,52 @@ export const updateCompany = async (req, res) => {
     await company.save();
 
     res.status(200).json({ message: "Company updated successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// DELETE EMPLOYEE FROM COMPANY - COMPANY OWNER
+export const deleteEmployee = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { email } = req.body;
+
+    const company = await Company.findOne({
+      owners: { $in: [owner] },
+    });
+
+    // Check if company exists
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    // Check if user exists in the company
+    if (!company.employees.includes(email)) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    // Update Company document
+    company.employees = company.employees.filter(
+      (employee) => employee !== email
+    );
+    await company.save();
+
+    // Update Project document
+    await Project.updateMany(
+      { companyID: company.companyID },
+      {
+        $pull: {
+          owners: email,
+          editors: email,
+          viewers: email,
+          joinRequests: email,
+          activeInvites: email,
+        },
+      }
+    );
+
+    res.status(200).json({ message: "Employee deleted successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -282,22 +332,23 @@ export const updateProject = async (req, res) => {
       name,
       type,
     });
-    
+
     if (projectExists) {
       return res.status(409).json({
-        message: "A project with same configuration already exists in the company",
+        message:
+          "A project with same configuration already exists in the company",
       });
     }
 
     const project = await Project.findOne({
-      projectID
+      projectID,
     });
 
-    if(!project) {
+    if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
-    
-    if(!project.owners.includes(owner)) {
+
+    if (!project.owners.includes(owner)) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
@@ -416,26 +467,6 @@ export const createJoinCompanyRequest = async (req, res) => {
   }
 };
 
-// GET ALL JOIN REQUESTS TO COMPANY - COMPANY OWNER
-export const getJoinCompanyRequests = async (req, res) => {
-  try {
-    const email = req.session.username;
-
-    const company = await Company.findOne({
-      owners: { $in: [email] },
-    });
-
-    // Check if company exists
-    if (!company) {
-      return res.status(404).json({ message: "Company not found" });
-    }
-
-    res.status(200).json(company.joinRequests);
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
 // ACCEPT JOIN REQUEST TO COMPANY - COMPANY OWNER
 export const acceptJoinCompanyRequest = async (req, res) => {
   try {
@@ -456,6 +487,16 @@ export const acceptJoinCompanyRequest = async (req, res) => {
       return res.status(404).json({ message: "No request found from user" });
     }
 
+    const isAdmin = await Company.findOne({
+      $or: [{ owners: email }, { employees: email }],
+    });
+
+    if (isAdmin) {
+      return res.status(400).json({
+        message: "User is already part of another company",
+      });
+    }
+
     // Update Company document
     company.employees.push(email);
     company.joinRequests = company.joinRequests.filter(
@@ -469,14 +510,7 @@ export const acceptJoinCompanyRequest = async (req, res) => {
       { $pull: { joinRequests: email } }
     );
 
-    // Create Admin document
-    const admin = new Admin({
-      email,
-      companyID: company.companyID,
-    });
-    await admin.save();
-
-    res.status(200).json({ message: "Request accepted successfully" });
+    res.status(200).json({ message: "Request accepted." });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -617,26 +651,6 @@ export const leaveCompany = async (req, res) => {
     );
 
     res.status(200).json({ message: "Success!" });
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET ALL JOIN REQUESTS TO PROJECT - PROJECT OWNER
-export const getJoinProjectRequests = async (req, res) => {
-  try {
-    const email = req.session.username;
-
-    const project = await Project.findOne({
-      owners: { $in: [email] },
-    });
-
-    // Check if project exists
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    res.status(200).json(project.joinRequests);
   } catch (error) {
     return res.status(500).send(error.message);
   }

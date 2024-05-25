@@ -20,6 +20,12 @@ const userSchema = new mongoose.Schema(
       required: [true, "Provide password"],
     },
 
+    status: {
+      type: String,
+      default: "active",
+      enum: ["active", "inactive"],
+    },
+
     name: {
       type: String,
       trim: true,

@@ -8,6 +8,7 @@ import Joi from "joi";
 import bcrypt from "bcrypt";
 import otpGenerator from "otp-generator";
 import { redisClient } from "../server.js";
+import { deleteAdmin } from "./admin.js";
 
 //LOGIN
 export const loginUser = async (req, res) => {
@@ -26,7 +27,7 @@ export const loginUser = async (req, res) => {
 
     //Search in DB
     const { email, password, remember_me } = req.body;
-    const user = await users.findOne({ email });
+    const user = await users.findOne({ status: "active", email });
 
     if (!user) {
       return res.status(404).send("Not registered!");
@@ -36,7 +37,6 @@ export const loginUser = async (req, res) => {
     const passwordCorrect = await bcrypt.compare(password, user.password);
     if (passwordCorrect) {
       req.session.username = user.email;
-      req.session.role = user.role;
       if (remember_me) {
         req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 1 month
       }
@@ -56,7 +56,6 @@ export const loginUser = async (req, res) => {
 
       return res.status(200).json({
         email: user.email,
-        role: user.role,
         message: `Login Successful`,
       });
     } else {
@@ -69,7 +68,7 @@ export const loginUser = async (req, res) => {
         .json(error.details.map((detail) => detail.message).join(", "));
     }
 
-    return res.status(500).send(error.message);
+    return res.status(500).send(error);
   }
 };
 
@@ -85,7 +84,7 @@ export const logOut = (req, res) => {
     }
 
     res.clearCookie("sid");
-    return res.json({ message: "Logged out"});
+    return res.json({ message: "Logged out" });
   });
 };
 
@@ -95,14 +94,20 @@ export const isRegistered = async (req, res) => {
     const email = req.body.email;
 
     // isRegistered
-    const user = await users.findOne({ email }, { _id: 0, email: 1 });
+    const user = await users.findOne({ status: "active", email }, { _id: 0, email: 1 });
     if (user) {
-      return res.status(200).send(true);
+      return res.status(200).json({
+        message: "User already registered",
+        registered: true,
+      });
     } else {
-      return res.status(200).send(false);
+      return res.status(200).json({
+        message: "User not registered",
+        registered: false,
+      });
     }
   } catch (error) {
-    return res.status(500).json(error.message);
+    return res.status(500).json(error);
   }
 };
 
@@ -147,15 +152,21 @@ export const sendOTP = async (req, res) => {
              <p>Thank you for using facOTTry!</p>`,
     };
 
-    const result = await sendMail(mailOptions);
-    if (result.accepted) {
-      // Store temporary information
-      req.session.otp = otp;
-      req.session.email = req.body.email;
-      req.session.otpExpiry = Date.now() + 180000; //5 Minutes from now
+    // const result = await sendMail(mailOptions);
+    // if (result.accepted) {
+    //   // Store temporary information
+    //   req.session.otp = otp;
+    //   req.session.email = req.body.email;
+    //   req.session.otpExpiry = Date.now() + 180000; //5 Minutes from now
 
-      return res.json({ message: `OTP sent to ${req.body.email}`});
-    }
+    //   return res.json({ message: `OTP sent to ${req.body.email}`});
+    // }
+
+    req.session.otp = otp;
+    req.session.email = req.body.email;
+    req.session.otpExpiry = Date.now() + 180000; // 5 Minutes from now
+
+    return res.status(200).json({ message: otp });
 
     res.status(500).send("Error sending OTP");
   } catch (error) {
@@ -192,13 +203,13 @@ export const verifyOTP = async (req, res) => {
       delete req.session.otp;
       delete req.session.otpExpiry;
       req.session.tempSessionExp = Date.now() + 300000; //5 Minutes from now
-      return res.send({ message: "OTP Verified"});
+      return res.send({ message: "OTP Verified" });
     } else {
       if (userEnteredOTP === storedOTP) {
         delete req.session.otp;
         delete req.session.otpExpiry;
         req.session.tempSessionExp = Date.now() + 300000; //5 Minutes from now
-        return res.send({ message: "OTP Verified"});
+        return res.send({ message: "OTP Verified" });
       } else {
         return res.status(403).send("Wrong OTP");
       }
@@ -240,14 +251,25 @@ export const registerUser = async (req, res) => {
       email,
       password: hash,
       profilePic,
-      role: "user",
     });
     await newUser.save();
 
     delete req.session.tempSessionExp;
     delete req.session.email;
 
-    return res.status(200).json({ message: "User registered" });
+    req.session.username = email;
+    req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000;
+
+    // Update active-sessions of user
+    redisClient.SADD(`user-sess:${email}`, req.sessionID, (err, result) => {
+      if (err) {
+        console.error("Error adding session to active sessions:", err);
+      }
+    });
+
+    removeExpiredUserSessions(email);
+
+    return res.status(200).json({ message: "Registered Successfully" });
   } catch (error) {
     if (error.details) {
       return res
@@ -285,7 +307,7 @@ export const forgotPassword = async (req, res) => {
     // Hash password & save to mongoDB
     const hash = await bcrypt.hash(password, 12);
     await users.findOneAndUpdate(
-      { email },
+      { status: "active", email },
       { $set: { password: hash } },
       { new: true }
     );
@@ -316,7 +338,7 @@ export const resetPassword = async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     const user = await users.findOne(
-      { $or: [{ email: id }] },
+      { status:"active", $or: [{ email: id }] },
       { password: 1, email: 1 }
     );
 
@@ -375,7 +397,7 @@ export const resetPassword = async (req, res) => {
 export const fetchUserDetails = async (req, res) => {
   try {
     const user = await users.findOne(
-      { email: req.session.username },
+      { status:"active", email: req.session.username },
       { _id: 0, password: 0, __v: 0 }
     );
 
@@ -389,13 +411,14 @@ export const fetchUserDetails = async (req, res) => {
   }
 };
 
+// UPDATE USER DETAILS
 export const updateUserDetails = async (req, res) => {
   try {
     const { name, mobile, profilePic, address } = req.body;
     const email = req.session.username;
 
     const result = await users.findOneAndUpdate(
-      { email },
+      { status: "active", email },
       {
         $set: {
           name,
@@ -415,4 +438,24 @@ export const updateUserDetails = async (req, res) => {
   } catch (error) {
     return res.status(500).json(error.message);
   }
-}
+};
+
+// DEACTIVATE USER ACCOUNT
+export const deleteUserAccount = async (req, res) => {
+  try {
+    const email = req.session.username;
+    const user = await users.findOne({ status: "active", email });
+
+    if (!user) {
+      return res.status(404).send("User not found");
+    }
+
+    user.status = "inactive";
+    await user.save();
+    
+    revokeUserSessions(email);
+    return res.status(200).send("Account deleted successfully");
+  } catch (error) {
+    return res.status(500).json(error.message);
+  }
+};

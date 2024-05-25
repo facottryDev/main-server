@@ -1,7 +1,8 @@
 import { generateID, sendMail } from "../lib/helpers.js";
 import Company from "../models/company.js";
 import Project from "../models/project.js";
-import Admin from "../models/admin.js";
+import AppConfig from "../models/appConfig.js";
+import PlayerConfig from "../models/playerConfig.js";
 
 // GET ADMIN INFO
 export const getAdmin = async (req, res) => {
@@ -36,6 +37,7 @@ export const getAdmin = async (req, res) => {
         : [],
       owners: company.owners,
       employees: company.owners.includes(email) ? company.employees : [],
+      filters: company.filters,
     };
 
     if (!projects.length) {
@@ -131,7 +133,6 @@ export const deactivateCompany = async (req, res) => {
 
     const company = await Company.findOne({
       status: "active",
-      status: "active",
       owners: { $in: [owner] },
     });
 
@@ -140,8 +141,20 @@ export const deactivateCompany = async (req, res) => {
       return res.status(404).json({ message: "Company not found" });
     }
 
-    // Update the status of all projects under the company
-    await Project.updateMany(
+    // Update the status of all projects under the company and return projectIDs
+    const projects = await Project.updateMany(
+      { status: "active", companyID: company.companyID },
+      { status: "inactive" }
+    );
+
+    // Update the status of all appConfigs under the company
+    await AppConfig.updateMany(
+      { status: "active", companyID: company.companyID },
+      { status: "inactive" }
+    );
+
+    // Update the status of all playerConfigs under the company
+    await PlayerConfig.updateMany(
       { status: "active", companyID: company.companyID },
       { status: "inactive" }
     );
@@ -152,7 +165,7 @@ export const deactivateCompany = async (req, res) => {
 
     res.status(200).json({ message: "Company deactivated successfully" });
   } catch (error) {
-    return res.status(500).send(error.message);
+    return res.status(500).send(error);
   }
 };
 
@@ -276,10 +289,6 @@ export const addProject = async (req, res) => {
 
     await newProject.save();
 
-    // Update company document
-    company.projects.push(projectID);
-    await company.save();
-
     const projectDetails = {
       projectID: newProject.projectID,
       name: newProject.name,
@@ -393,9 +402,10 @@ export const deleteProjectUser = async (req, res) => {
       return res.status(404).json({ message: "User not found in project" });
     }
 
-    if(project.owners.includes(email) && project.owners.length === 1) {
+    if (project.owners.includes(email) && project.owners.length === 1) {
       return res.status(400).json({
-        message: "You are the only owner of this project. Transfer ownership before leaving.",
+        message:
+          "You are the only owner of this project. Transfer ownership before leaving.",
       });
     }
 
@@ -437,9 +447,10 @@ export const changeAccess = async (req, res) => {
       return res.status(404).json({ message: "User not found in project" });
     }
 
-    if(project.owners.includes(email) && project.owners.length === 1) {
+    if (project.owners.includes(email) && project.owners.length === 1) {
       return res.status(400).json({
-        message: "You are the only owner of this project. Make someone else owner before changing.",
+        message:
+          "You are the only owner of this project. Make someone else owner before changing.",
       });
     }
 
@@ -456,68 +467,6 @@ export const changeAccess = async (req, res) => {
 
     res.status(200).json({ message: "User updated successfully" });
   } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// MANUALLY ADD USER TO PROJECT - PROJECT OWNER
-export const addAdminToProject = async (req, res) => {
-  try {
-    const { projectID, email, role } = req.body;
-    const owner = req.session.username;
-
-    const project = await Project.findOne({ status: "active", projectID });
-
-    // Check if project exists and user is owner
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    if (!project.owners.includes(owner)) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    // Check if given email exists in same company
-    const admin = await Admin.findOne({ email });
-    if (!admin) {
-      return res.status(404).json({ message: "Email not registered" });
-    }
-
-    if (admin.companyID !== project.companyID) {
-      return res
-        .status(400)
-        .json({ message: "User does not belong to same company" });
-    }
-
-    // Check if user already exists in project
-    if (
-      project.owners.includes(email) ||
-      project.editors.includes(email) ||
-      project.viewers.includes(email)
-    ) {
-      return res
-        .status(400)
-        .json({ message: `User already exists in project` });
-    }
-
-    // Update Project document
-    project[role + "s"].push(email);
-    await project.save();
-
-    // Update User document
-    await Admin.updateOne(
-      { email },
-      { $push: { projects: { projectID, role } } }
-    );
-
-    res.status(200).json({ message: "User added to project successfully" });
-  } catch (error) {
-    if (error.details) {
-      return res
-        .status(400)
-        .json(error.details.map((detail) => detail.message).join(", "));
-    }
-
     return res.status(500).send(error.message);
   }
 };
@@ -726,11 +675,12 @@ export const leaveCompany = async (req, res) => {
         .status(404)
         .json({ message: "You don't belong to any company" });
     }
-    
+
     // Check if user is the only owner of the company
     if (company.owners.length === 1 && company.owners.includes(email)) {
       return res.status(400).json({
-        message: "You are the only owner of this company. Transfer ownership before leaving.",
+        message:
+          "You are the only owner of this company. Transfer ownership before leaving.",
       });
     }
 
@@ -865,7 +815,8 @@ export const leaveProject = async (req, res) => {
     // Check if user is the only owner of the project
     if (project.owners.length === 1 && project.owners.includes(email)) {
       return res.status(400).json({
-        message: "You are the only owner of this project. Transfer ownership before leaving.",
+        message:
+          "You are the only owner of this project. Transfer ownership before leaving.",
       });
     }
 
@@ -1026,6 +977,64 @@ export const sendProjectInvite = async (req, res) => {
       message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)",
       inviteLink,
     });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// DELETE ADMIN ACCOUNT BY CALLING LEAVE COMPANY & LEAVE PROJECT
+export const deleteAdmin = async (req, res) => {
+  try {
+    // Leave Company
+    await leaveCompany(req, res);
+
+    // Leave All Projects
+    const email = req.session.username;
+    const projects = await Project.find({
+      status: "active",
+      $or: [{ owners: email }, { editors: email }, { viewers: email }],
+    });
+
+    const promises = projects.map(async (project) => {
+      const body = { projectID: project.projectID };
+      await leaveProject({ body }, res);
+    });
+
+    await Promise.all(promises);
+    return;
+  } catch (error) {
+    return error;
+  }
+};
+
+// UPDATE FILTERS OF THE COMPANY - COMPANY OWNER
+export const updateFilters = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { filter } = req.body;
+
+    const company = await Company.findOne({
+      status: "active",
+      owners: { $in: [owner] },
+    });
+
+    if (!company) {
+      return res.status(404).json({ message: "Company not found" });
+    }
+
+    // Find the filter with the same name
+    const existingFilter = company.filters.find(f => f.name === filter.name);
+
+    if (existingFilter) {
+      existingFilter.values = filter.values;
+    } else {
+      company.filters.push(filter);
+    }
+
+    await company.save();
+    return res.status(200).json({ message: "Filters updated successfully" });
+
+    
   } catch (error) {
     return res.status(500).send(error.message);
   }

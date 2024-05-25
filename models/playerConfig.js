@@ -17,7 +17,18 @@ const playerConfigSchema = new mongoose.Schema(
       type: String
     },
 
+    status: {
+      type: String,
+      default: "active",
+      enum: ["active", "inactive"],
+    },
+
     projectID: {
+      type: String,
+      required: true,
+    },
+
+    companyID: {
       type: String,
       required: true,
     },

@@ -1,6 +1,5 @@
 import { Router } from "express";
 import {
-  addAdminToProject,
   createJoinCompanyRequest,
   leaveCompany,
   createJoinProjectRequest,
@@ -22,6 +21,7 @@ import {
   rejectJoinProjectRequest,
   deleteProjectUser,
   changeAccess,
+  updateFilters,
 } from "../controllers/admin.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -38,10 +38,12 @@ router.post("/company/accept-request", acceptJoinCompanyRequest);
 router.post("/company/reject-request", rejectJoinCompanyRequest);
 router.post("/company/delete-employee", deleteEmployee);
 router.post("/company/invite", sendCompanyInvite);
+router.get("/company/verify-invite", verifyCompanyInvite);
+router.post('/company/update-filters', updateFilters);
 
 // FOR PROJECT OWNERS
 router.post("/add-project", addProject);
-router.delete("/deactivate-project", deactivateProject);
+router.post("/project/deactivate", deactivateProject);
 router.post("/update-project", updateProject);
 router.post("/project/accept-request", acceptJoinProjectRequest);
 router.post("/project/reject-request", rejectJoinProjectRequest);
@@ -49,16 +51,13 @@ router.post("/project/invite", sendProjectInvite);
 router.post("/project/delete-user", deleteProjectUser);
 router.post('/project/change-access', changeAccess);
 
-// WHEN USER REQUESTS TO JOIN OR LEAVE COMPANY/PROJECT
+// WHEN ANY COMPANY USER
 router.post("/join-company", createJoinCompanyRequest);
 router.post("/company/leave", leaveCompany);
 
+// WHEN ANY PROJECT USER
 router.post("/join-project", createJoinProjectRequest);
 router.post("/project/leave", leaveProject);
-
-// WHEN OWNER INVITES / REMOVES USERS
-router.post("/add-admin-to-project", addAdminToProject);
-router.get("/invite/company", verifyCompanyInvite);
 
 router.get("/", (req, res) => {
   res.status(200).json({ message: "Admin Router" });

@@ -9,6 +9,7 @@ import {
   forgotPassword,
   fetchUserDetails,
   updateUserDetails,
+  deleteUserAccount,
 } from "../controllers/auth.js";
 import { isAuth } from "../lib/middlewares.js";
 import { Router } from "express";
@@ -23,6 +24,7 @@ router.post("/verify-otp", verifyOTP);
 router.post("/register", registerUser);
 router.post("/forgot", forgotPassword);
 router.post("/reset", resetPassword);
+router.delete("/delete-user", deleteUserAccount);
 
 //USER
 router.get("/get-user", isAuth, fetchUserDetails);

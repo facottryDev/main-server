@@ -13,11 +13,22 @@ const appConfigSchema = new mongoose.Schema(
       required: true,
     },
 
+    status: {
+      type: String,
+      default: "active",
+      enum: ["active", "inactive"],
+    },
+
     desc: {
       type: String
     },
 
     projectID: {
+      type: String,
+      required: true,
+    },
+
+    companyID: {
       type: String,
       required: true,
     },

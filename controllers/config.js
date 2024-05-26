@@ -3,7 +3,6 @@ import AppConfig from "../models/appConfig.js";
 import PlayerConfig from "../models/playerConfig.js";
 import Master from "../models/master.js";
 import { generateID } from "../lib/helpers.js";
-import { redisClient as client } from "../server.js";
 
 // CREATE NEW APP CONFIG - PROJECT OWNER / EDITOR
 export const addAppConfig = async (req, res) => {
@@ -298,26 +297,12 @@ export const getAllPlayerConfigs = async (req, res) => {
 // MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
 export const createMapping = async (req, res) => {
   try {
-    const { projectID, appConfig, playerConfig, filter } = req.body;
+    const { companyID, projectID, appConfig, playerConfig, deltaFilter } =
+      req.body;
     const owner = req.session.username;
 
-    console.log(filter)
-
-    switch (true) {
-      case !projectID:
-        return res.status(400).json({ message: "ProjectID is required" });
-      case !appConfig:
-        return res.status(400).json({ message: "AppConfig is required" });
-      case !playerConfig:
-        return res.status(400).json({ message: "PlayerConfig is required" });
-      case !filter:
-        return res.status(400).json({ message: "Filter is required" });
-    }
-
-    const project = await Project.findOne(
-      { status: "active", projectID },
-      { owners: 1, editors: 1 }
-    );
+    // Check if Project exists & Authorized
+    const project = await Project.findOne({ status: "active", projectID });
 
     switch (true) {
       case !project:
@@ -326,17 +311,47 @@ export const createMapping = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
-    // Create new master document or update existing
+    // Check if AppConfig & PlayerConfig exists
+    const appConfigDoc = await AppConfig.findOne({
+      status: "active",
+      configID: appConfig.configID,
+    });
+    const playerConfigDoc = await PlayerConfig.findOne({
+      status: "active",
+      configID: playerConfig.configID,
+    });
+
+    switch (true) {
+      case !appConfigDoc:
+        return res.status(404).json({ message: "AppConfig not found" });
+      case !playerConfigDoc:
+        return res.status(404).json({ message: "PlayerConfig not found" });
+    }
+
+    const mergedFilter = {};
+
+    project.filters.map((filter) => {
+      mergedFilter[filter.name] = {
+        priority: filter.priority,
+        value: "",
+      };
+    });
+
+    Object.keys(deltaFilter).map((key) => {
+      mergedFilter[key].value = deltaFilter[key];
+    });
+
     const document = await Master.findOneAndUpdate(
       {
         projectID,
-        filter,
+        filter: mergedFilter,
       },
       {
+        companyID,
         projectID,
         appConfig,
         playerConfig,
-        filter,
+        filter: mergedFilter,
         status: "active",
       },
       { upsert: true, new: true }
@@ -344,7 +359,7 @@ export const createMapping = async (req, res) => {
 
     res.status(201).json({ message: "Success", document });
   } catch (error) {
-    return res.status(500).send(error.message);
+    return res.status(500).send(error);
   }
 };
 
@@ -388,52 +403,23 @@ export const deleteMapping = async (req, res) => {
 // GET MAPPING FROM FILTER PARAMS (SCALE SERVER)
 export const getMapping = async (req, res) => {
   try {
-    const { projectID, filter, nocache } = req.body;
-    const key = `${projectID}-${country}-${subscription}-${os}-${osver}`;
+    const { projectID, filter } = req.body;
+    console.log(filter)
 
-    console.log(req.body)
+    const filterKeys = Object.keys(filter);
 
-    // Try getting data from cache
-    const data = await client.get(key);
-
-    if (data && !nocache) {
-      return res.status(200).json(JSON.parse(data));
-    } else {
-      const document = await Master.findOne(
-        {
-          projectID,
-          status: "active",
-          filter,
-        },
-        {
-          _id: 0,
-          appConfig: 1,
-          playerConfig: 1,
-          filter: 1,
+    const masters = await Master.find({
+      projectID,
+      status: 'active',
+      ...filterKeys.reduce((acc, key) => {
+        if (filter[key] !== '') {
+          return { ...acc, [`filter.${key}.value`]: filter[key] };
         }
-      );
+        return acc;
+      }, {}),
+    });
 
-      if (!document) {
-        const defaultConfig = {
-          appConfig: {
-            configID: "ac_default",
-            params: {},
-          },
-          playerConfig: {
-            configID: "pc_default",
-            params: {},
-          },
-        };
-
-        return res
-          .status(404)
-          .json({ message: "Mapping not found", defaultConfig });
-      }
-
-      // Store document in cache
-      await client.set(key, JSON.stringify(document), "EX", 300);
-      res.status(200).json(document);
-    }
+    res.status(200).json({ message: "Success", masters });
   } catch (error) {
     return res.status(500).send(error.message);
   }

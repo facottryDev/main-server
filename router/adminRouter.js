@@ -21,7 +21,9 @@ import {
   rejectJoinProjectRequest,
   deleteProjectUser,
   changeAccess,
-  updateFilters,
+  deleteFilter,
+  addFilter,
+  updateFilter,
 } from "../controllers/admin.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -39,7 +41,6 @@ router.post("/company/reject-request", rejectJoinCompanyRequest);
 router.post("/company/delete-employee", deleteEmployee);
 router.post("/company/invite", sendCompanyInvite);
 router.get("/company/verify-invite", verifyCompanyInvite);
-router.post('/company/update-filters', updateFilters);
 
 // FOR PROJECT OWNERS
 router.post("/add-project", addProject);
@@ -50,6 +51,9 @@ router.post("/project/reject-request", rejectJoinProjectRequest);
 router.post("/project/invite", sendProjectInvite);
 router.post("/project/delete-user", deleteProjectUser);
 router.post('/project/change-access', changeAccess);
+router.post('/filter/add', addFilter);
+router.post('/filter/update', updateFilter);
+router.post('/filter/delete', deleteFilter);
 
 // WHEN ANY COMPANY USER
 router.post("/join-company", createJoinCompanyRequest);

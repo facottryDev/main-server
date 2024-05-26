@@ -37,7 +37,6 @@ export const getAdmin = async (req, res) => {
         : [],
       owners: company.owners,
       employees: company.owners.includes(email) ? company.employees : [],
-      filters: company.filters,
     };
 
     if (!projects.length) {
@@ -64,6 +63,7 @@ export const getAdmin = async (req, res) => {
       owners: project.owners,
       editors: project.owners.includes(email) ? project.editors : [],
       viewers: project.owners.includes(email) ? project.viewers : [],
+      filters: project.filters,
     }));
 
     return res
@@ -278,6 +278,13 @@ export const addProject = async (req, res) => {
       });
     }
 
+    // Add default filters
+    const filters = [
+      { name: "COUNTRY", priority: 50, values: [] },
+      { name: "SUBSCRIPTION", priority: 49, values: [] },
+      { name: "OS", priority: 48, values: [] },
+    ];
+
     // Create new project
     const newProject = new Project({
       projectID,
@@ -285,6 +292,7 @@ export const addProject = async (req, res) => {
       type,
       companyID: company.companyID,
       owners: [owner],
+      filters
     });
 
     await newProject.save();
@@ -1007,34 +1015,117 @@ export const deleteAdmin = async (req, res) => {
   }
 };
 
-// UPDATE FILTERS OF THE COMPANY - COMPANY OWNER
-export const updateFilters = async (req, res) => {
+// ADD FILTER TO THE PROJECT - PROJECT OWNER
+export const addFilter = async (req, res) => {
   try {
     const owner = req.session.username;
-    const { filter } = req.body;
+    const { projectID, filter } = req.body;
 
-    const company = await Company.findOne({
+    const project = await Project.findOne({
       status: "active",
+      projectID,
       owners: { $in: [owner] },
     });
 
-    if (!company) {
-      return res.status(404).json({ message: "Company not found" });
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
     }
 
-    // Find the filter with the same name
-    const existingFilter = company.filters.find(f => f.name === filter.name);
+    // Check if a filter with same filter.name or filter.priority exists
+    const filterExists = project.filters.find(
+      (f) => f.name === filter.name || f.priority === filter.priority
+    );
 
-    if (existingFilter) {
-      existingFilter.values = filter.values;
-    } else {
-      company.filters.push(filter);
+    if (filterExists) {
+      return res.status(409).json({
+        message: "A filter with same name or priority already exists",
+      });
     }
 
-    await company.save();
-    return res.status(200).json({ message: "Filters updated successfully" });
+    // Add filter to existing filters array
+    project.filters.push(filter);
+    await project.save();
+    res.status(200).json({ message: "Filter added successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
 
-    
+// UPDATE A FILTER OF THE FILTERS OF A PROJECT - PROJECT OWNER
+export const updateFilter = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID, filter } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if filter exists
+    const filterExists = project.filters.find((f) => f.name === filter.name);
+
+    if (!filterExists) {
+      return res.status(404).json({ message: "Filter not found" });
+    }
+
+    // Check if no other filter with same priority exists
+    const priorityExists = project.filters.find(
+      (f) => f.priority === filter.priority && f.name !== filter.name
+    );
+
+    if (priorityExists) {
+      return res.status(409).json({
+        message: "A filter with same priority already exists",
+      });
+    }
+
+    // Update filter details
+    project.filters = project.filters.map((f) =>
+      f.name === filter.name ? filter : f
+    );
+    await project.save();
+    res.status(200).json({ message: "Filter updated successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// DELETE A FILTER FROM THE FILTERS OF A PROJECT - PROJECT OWNER
+export const deleteFilter = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID, filterName } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if filter exists
+    const filterExists = project.filters.find((f) => f.name === filterName);
+
+    if (!filterExists) {
+      return res.status(404).json({ message: "Filter not found" });
+    }
+
+    // Remove filter from filters array
+    project.filters = project.filters.filter((f) => f.name !== filterName);
+    await project.save();
+    res.status(200).json({ message: "Filter deleted successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }

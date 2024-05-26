@@ -7,6 +7,11 @@ const masterSchema = new mongoose.Schema(
       required: true,
     },
 
+    companyID: {
+      type: String,
+      required: true,
+    },
+
     status: {
       type: String,
       default: "active",

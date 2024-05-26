@@ -52,21 +52,6 @@ const companySchema = new mongoose.Schema(
       },
     ],
 
-    filters: [
-      {
-        name: {
-          type: String,
-          required: true,
-        },
-        values: [
-          {
-            type: String,
-            required: true,
-          },
-        ],
-      },
-    ],
-
     employees: [String],
   },
   { timestamps: true }

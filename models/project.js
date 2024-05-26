@@ -31,6 +31,25 @@ const projectSchema = new mongoose.Schema(
       required: true,
     },
 
+    filters: [
+      {
+        name: {
+          type: String,
+          required: true,
+        },
+        values: [
+          {
+            type: String,
+            required: true,
+          },
+        ],
+        priority: {
+          type: Number,
+          default: 0,
+        }
+      },
+    ],
+
     joinRequests: [
       {
         type: String,

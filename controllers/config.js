@@ -297,8 +297,7 @@ export const getAllPlayerConfigs = async (req, res) => {
 // MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
 export const createMapping = async (req, res) => {
   try {
-    const { companyID, projectID, appConfig, playerConfig, deltaFilter } =
-      req.body;
+    const { companyID, projectID, appConfig, playerConfig, filter } = req.body;
     const owner = req.session.username;
 
     // Check if Project exists & Authorized
@@ -328,30 +327,48 @@ export const createMapping = async (req, res) => {
         return res.status(404).json({ message: "PlayerConfig not found" });
     }
 
-    const mergedFilter = {};
+    // const mergedFilter = {};
 
-    project.filters.map((filter) => {
-      mergedFilter[filter.name] = {
-        priority: filter.priority,
-        value: "",
-      };
+    // project.filters.map((filter) => {
+    //   mergedFilter[filter.name] = {
+    //     priority: filter.priority,
+    //     value: "",
+    //   };
+    // });
+
+    // Object.keys(filter).map((key) => {
+    //   mergedFilter[key].value = filter[key];
+    // });
+
+    let priority = 0;
+    let filterCount = 0;
+
+    project.filters.map((item) => {
+      Object.keys(filter).map((key) => {
+        if (item.name === key && filter[key] !== "ALL") {
+          priority += item.priority;
+          filterCount += 1;
+        }
+      });
     });
 
-    Object.keys(deltaFilter).map((key) => {
-      mergedFilter[key].value = deltaFilter[key];
-    });
+    const filterDetails = {
+      priority,
+      filterCount,
+    };
 
     const document = await Master.findOneAndUpdate(
       {
         projectID,
-        filter: mergedFilter,
+        filter,
       },
       {
         companyID,
         projectID,
         appConfig,
         playerConfig,
-        filter: mergedFilter,
+        filter,
+        filterDetails,
         status: "active",
       },
       { upsert: true, new: true }
@@ -359,7 +376,8 @@ export const createMapping = async (req, res) => {
 
     res.status(201).json({ message: "Success", document });
   } catch (error) {
-    return res.status(500).send(error);
+    console.log(error.message);
+    return res.status(500).send(error.message);
   }
 };
 
@@ -400,26 +418,34 @@ export const deleteMapping = async (req, res) => {
   }
 };
 
-// GET MAPPING FROM FILTER PARAMS (SCALE SERVER)
+// GET MAPPING FROM FILTER PARAMS
 export const getMapping = async (req, res) => {
   try {
     const { projectID, filter } = req.body;
-    console.log(filter)
 
-    const filterKeys = Object.keys(filter);
+    switch (true) {
+      case !projectID:
+        return res.status(400).json({ message: "ProjectID is required" });
+      case !filter:
+        return res.status(400).json({ message: "Filter is required" });
+    }
 
-    const masters = await Master.find({
+    const masters = await Master.findOne({
       projectID,
-      status: 'active',
-      ...filterKeys.reduce((acc, key) => {
-        if (filter[key] !== '') {
-          return { ...acc, [`filter.${key}.value`]: filter[key] };
-        }
-        return acc;
-      }, {}),
+      status: "active",
+      filter,
     });
 
-    res.status(200).json({ message: "Success", masters });
+    // const sortedMasters = masters.sort((a, b) => {
+    //   if (a.filterDetails.filterCount === b.filterDetails.filterCount) {
+    //     return b.filterDetails.priority - a.filterDetails.priority;
+    //   }
+    //   return a.filterDetails.filterCount - b.filterDetails.filterCount;
+    // });
+
+    // const finalMaster = sortedMasters[0];
+
+    res.status(200).json({ message: "Success", mappings: masters });
   } catch (error) {
     return res.status(500).send(error.message);
   }

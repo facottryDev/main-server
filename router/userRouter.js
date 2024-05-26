@@ -2,7 +2,6 @@ import { Router } from "express";
 import { getMapping } from "../controllers/config.js";
 const router = Router();
 
-router.post("/get-mapping", getMapping);
 router.get("/dummy", (req, res) => {
   res.json({
     filter: {

@@ -23,6 +23,11 @@ const masterSchema = new mongoose.Schema(
       required: true,
     },
 
+    filterDetails: {
+      type: Object,
+      required: true,
+    },
+
     appConfig: {
       configID: {
         type: String,

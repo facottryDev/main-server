@@ -8,6 +8,7 @@ import {
   getAllPlayerConfigs,
   deleteConfig,
   modifyConfig,
+  getMapping,
 } from "../controllers/config.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -23,6 +24,7 @@ router.get("/get-player-configs", getAllPlayerConfigs);
 
 router.post("/create-mapping", createMapping);
 router.post("/delete-mapping", deleteMapping);
+router.post("/get-mapping", getMapping);
 
 router.get("/", (req, res) => {
   res.status(200).json({ message: "Config Router" });

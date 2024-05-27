@@ -7,30 +7,25 @@ const masterSchema = new mongoose.Schema(
       required: true,
     },
 
+    companyID: {
+      type: String,
+      required: true,
+    },
+
+    status: {
+      type: String,
+      default: "active",
+      enum: ["active", "inactive"],
+    },
+
     filter: {
-      country: {
-        type: String,
-        required: true,
-        default: "",
-      },
+      type: Object,
+      required: true,
+    },
 
-      subscription: {
-        type: String,
-        required: true,
-        default: "",
-      },
-
-      os: {
-        type: String,
-        required: true,
-        default: "",
-      },
-
-      osver: {
-        type: String,
-        required: true,
-        default: "",
-      },
+    filterDetails: {
+      type: Object,
+      required: true,
     },
 
     appConfig: {
@@ -57,6 +52,7 @@ const masterSchema = new mongoose.Schema(
           "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
       },
     },
+    
     playerConfig: {
       configID: {
         type: String,

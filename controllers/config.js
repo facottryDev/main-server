@@ -1,10 +1,8 @@
-import Filter from "../models/filter.js";
 import Project from "../models/project.js";
 import AppConfig from "../models/appConfig.js";
 import PlayerConfig from "../models/playerConfig.js";
 import Master from "../models/master.js";
 import { generateID } from "../lib/helpers.js";
-import { redisClient as client } from "../server.js";
 
 // CREATE NEW APP CONFIG - PROJECT OWNER / EDITOR
 export const addAppConfig = async (req, res) => {
@@ -22,12 +20,7 @@ export const addAppConfig = async (req, res) => {
     }
 
     // Check if Project exists & user is authorized
-    const project = await Project.findOne(
-      { status:"active",
-        projectID,
-      },
-      { name: 1, owners: 1, editors: 1, _id: 0 }
-    );
+    const project = await Project.findOne({ status: "active", projectID });
 
     switch (true) {
       case !project:
@@ -38,9 +31,11 @@ export const addAppConfig = async (req, res) => {
 
     // Check if AppConfig already exists
     const appConfig = await AppConfig.findOne({
+      status: "active",
       projectID,
       params,
     });
+
     if (appConfig) {
       return res.status(409).json({
         message: "AppConfig already exists",
@@ -52,6 +47,7 @@ export const addAppConfig = async (req, res) => {
     const newAppConfig = new AppConfig({
       configID: generateID(`AC_${project.name}`),
       projectID,
+      companyID: project.companyID,
       name,
       desc,
       params,
@@ -59,10 +55,10 @@ export const addAppConfig = async (req, res) => {
     await newAppConfig.save();
 
     res
-      .status(201)
+      .status(200)
       .json({ message: "Success", appConfigId: newAppConfig.configID });
   } catch (error) {
-    return res.status(500).send(error.message);
+    return res.status(500).json(error);
   }
 };
 
@@ -73,12 +69,7 @@ export const addPlayerConfig = async (req, res) => {
     const owner = req.session.username;
 
     // Check if Project exists & Authorized
-    const project = await Project.findOne(
-      { status:"active",
-        projectID,
-      },
-      { name: 1, owners: 1, editors: 1, _id: 0 }
-    );
+    const project = await Project.findOne({ status: "active", projectID });
 
     switch (true) {
       case !project:
@@ -89,6 +80,7 @@ export const addPlayerConfig = async (req, res) => {
 
     // Check if PlayerConfig already exists
     const playerConfig = await PlayerConfig.findOne({
+      status: "active",
       projectID,
       params,
     });
@@ -103,6 +95,7 @@ export const addPlayerConfig = async (req, res) => {
     const newPlayerConfig = new PlayerConfig({
       configID: generateID(`PC_${project.name}`),
       projectID,
+      companyID: project.companyID,
       name,
       desc,
       params,
@@ -123,78 +116,14 @@ export const addPlayerConfig = async (req, res) => {
   }
 };
 
-// UPDATE APP CONFIG - PROJECT OWNER / EDITOR
-export const updateAppConfig = async (req, res) => {
-  try {
-    const { configID, params } = req.body;
-    const user = req.session.username;
-
-    const appConfig = await AppConfig.findOne({ configID });
-    if (!appConfig) {
-      return res.status(404).json({ message: "AppConfig not found" });
-    }
-
-    const project = await Project.findOne(
-      { status:"active", projectID: appConfig.projectID },
-      { owners: 1, editors: 1, _id: 0 }
-    );
-
-    if (!project.owners.includes(user) && !project.editors.includes(user)) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const updatedAppConfig = await AppConfig.findOneAndUpdate(
-      { configID },
-      { params },
-      { new: true }
-    );
-
-    res.status(200).json({ message: "Success", updatedAppConfig });
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// UPDATE PLAYER CONFIG - PROJECT OWNER / EDITOR
-export const updatePlayerConfig = async (req, res) => {
-  try {
-    const { configID, params } = req.body;
-    const user = req.session.username;
-
-    const playerConfig = await PlayerConfig.findOne({ configID });
-
-    if (!playerConfig) {
-      return res.status(404).json({ message: "PlayerConfig not found" });
-    }
-
-    const project = await Project.findOne(
-      { status:"active", projectID: playerConfig.projectID },
-      { owners: 1, editors: 1, _id: 0 }
-    );
-
-    if (!project.owners.includes(user) && !project.editors.includes(user)) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const updatedPlayerConfig = await PlayerConfig.findOneAndUpdate(
-      { configID },
-      { params },
-      { new: true }
-    );
-
-    res.status(200).json({ message: "Success", updatedPlayerConfig });
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
+// DELETE APP / PLAYER CONFIG - PROJECT OWNER / EDITOR
 export const deleteConfig = async (req, res) => {
   try {
     const { configID } = req.query;
     const user = req.session.username;
 
     if (configID.startsWith("ac")) {
-      const appConfig = await AppConfig.findOne({ configID });
+      const appConfig = await AppConfig.findOne({ status: "active", configID });
 
       if (!appConfig) {
         return res.status(404).json({ message: "AppConfig not found" });
@@ -209,11 +138,13 @@ export const deleteConfig = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
       }
 
-      await AppConfig.findOneAndDelete({ configID });
+      appConfig.status = "inactive";
+      await appConfig.save();
     }
 
     if (configID.startsWith("pc")) {
       const playerConfig = await PlayerConfig.findOne({
+        status: "active",
         configID,
       });
 
@@ -230,12 +161,142 @@ export const deleteConfig = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
       }
 
-      await PlayerConfig.findOneAndDelete({ configID });
+      playerConfig.status = "inactive";
+      await playerConfig.save();
     }
 
     res.status(200).json({ message: "Success" });
   } catch (error) {
     res.status(500).send(error.message);
+  }
+};
+
+// MODIFY APP / PLAYER CONFIG - PROJECT OWNER / EDITOR
+export const modifyConfig = async (req, res) => {
+  try {
+    const { configID, params, name, desc } = req.body;
+    const user = req.session.username;
+
+    if (configID.startsWith("ac")) {
+      const appConfig = await AppConfig.findOne({ status: "active", configID });
+
+      if (!appConfig) {
+        return res.status(404).json({ message: "AppConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: appConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      appConfig.params = params || appConfig.params;
+      appConfig.name = name || appConfig.name;
+      appConfig.desc = desc || appConfig.desc;
+      await appConfig.save();
+    }
+
+    if (configID.startsWith("pc")) {
+      const playerConfig = await PlayerConfig.findOne({
+        status: "active",
+        configID,
+      });
+
+      if (!playerConfig) {
+        return res.status(404).json({ message: "PlayerConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: playerConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      playerConfig.params = params || playerConfig.params;
+      playerConfig.name = name || playerConfig.name;
+      playerConfig.desc = desc || playerConfig.desc;
+      await playerConfig.save();
+    }
+
+    return res.status(200).json({ message: "Success" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// CLONE CONFIG - PROJECT OWNER / EDITOR
+export const cloneConfig = async (req, res) => {
+  try {
+    const { configID, name, desc, params } = req.body;
+    const user = req.session.username;
+
+    if (configID.startsWith("ac")) {
+      const appConfig = await AppConfig.findOne({ status: "active", configID });
+
+      if (!appConfig) {
+        return res.status(404).json({ message: "AppConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: appConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const newAppConfig = new AppConfig({
+        configID: generateID(`AC_${project.name}`),
+        projectID: appConfig.projectID,
+        companyID: appConfig.companyID,
+        desc: desc || appConfig.desc,
+        name: name || appConfig.name,
+        params: params || appConfig.params,
+      });
+      await newAppConfig.save();
+    }
+
+    if (configID.startsWith("pc")) {
+      const playerConfig = await PlayerConfig.findOne({
+        status: "active",
+        configID,
+      });
+
+      if (!playerConfig) {
+        return res.status(404).json({ message: "PlayerConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: playerConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const newPlayerConfig = new PlayerConfig({
+        configID: generateID(`PC_${project.name}`),
+        projectID: playerConfig.projectID,
+        companyID: playerConfig.companyID,
+        desc: desc || playerConfig.desc,
+        name: name || playerConfig.name,
+        params: params || playerConfig.params,
+      });
+      await newPlayerConfig.save();
+    }
+
+    return res.status(200).json({ message: "Success" });
+  } catch (error) {
+    console.log(error.message)
+    return res.status(500).send(error.message);
   }
 };
 
@@ -247,7 +308,7 @@ export const getAllAppConfigs = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      { status:"active", projectID },
+      { status: "active", projectID },
       { owners: 1, editors: 1, viewers: 1, _id: 0 }
     );
 
@@ -260,7 +321,10 @@ export const getAllAppConfigs = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
-    const result = await AppConfig.find({ projectID }, { _id: 0, __v: 0 });
+    const result = await AppConfig.find(
+      { status: "active", projectID },
+      { _id: 0, __v: 0 }
+    );
 
     res.status(200).json(result);
   } catch (error) {
@@ -276,7 +340,7 @@ export const getAllPlayerConfigs = async (req, res) => {
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
-      { status:"active", projectID },
+      { status: "active", projectID },
       { owners: 1, editors: 1, viewers: 1, _id: 0 }
     );
 
@@ -289,98 +353,10 @@ export const getAllPlayerConfigs = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
-    const result = await PlayerConfig.find({ projectID }, { _id: 0, __v: 0 });
-
-    res.status(200).json(result);
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// FETCH APP CONFIG FROM APP_CONFIG_ID - PROJECT OWNER / EDITOR / VIEWER
-export const getAppConfigFromId = async (req, res) => {
-  try {
-    const { projectID, configID } = req.query;
-    const user = req.session.username;
-
-    // Check if Project exists & Authorized
-    const project = await Project.findOne(
-      { status:"active", projectID },
-      { owners: 1, editors: 1, viewers: 1, _id: 0 }
+    const result = await PlayerConfig.find(
+      { status: "active", projectID },
+      { _id: 0, __v: 0 }
     );
-
-    switch (true) {
-      case !project:
-        return res.status(404).json({ message: "Project not found" });
-      case !project.owners.includes(user) &&
-        !project.editors.includes(user) &&
-        !project.viewers.includes(user):
-        return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const result = await AppConfig.findOne({ configID }, { _id: 0, __v: 0 });
-
-    if (!result) {
-      return res.status(404).json({ message: "AppConfig not found" });
-    }
-
-    res.status(200).json(result);
-  } catch (error) {
-    if (error.details) {
-      return res
-        .status(400)
-        .json(error.details.map((detail) => detail.message).join(", "));
-    }
-
-    return res.status(500).send(error.message);
-  }
-};
-
-// FETCH PLAYER CONFIG FROM PLAYER_CONFIG_ID - PROJECT OWNER / EDITOR / VIEWER
-export const getPlayerConfigFromId = async (req, res) => {
-  try {
-    const { projectID, configID } = req.query;
-    const user = req.session.username;
-
-    // Check if Project exists & Authorized
-    const project = await Project.findOne(
-      { status:"active", projectID },
-      { owners: 1, editors: 1, viewers: 1, _id: 0 }
-    );
-
-    switch (true) {
-      case !project:
-        return res.status(404).json({ message: "Project not found" });
-      case !project.owners.includes(user) &&
-        !project.editors.includes(user) &&
-        !project.viewers.includes(user):
-        return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const result = await PlayerConfig.findOne({ configID }, { _id: 0, __v: 0 });
-
-    if (!result) {
-      return res.status(404).json({ message: "PlayerConfig not found" });
-    }
-
-    res.status(200).json(result);
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET FILTER_ID FROM FILTER PARAMS
-export const getFilterIdFromParams = async (req, res) => {
-  try {
-    const { country, subscription, OS, OSver } = req.query;
-    const result = await Filter.findOne(
-      { country, subscription, OS, OSver },
-      { filterID: 1, _id: 0 }
-    );
-
-    if (!result) {
-      return res.status(404).json({ message: "Filter not found" });
-    }
 
     res.status(200).json(result);
   } catch (error) {
@@ -391,24 +367,11 @@ export const getFilterIdFromParams = async (req, res) => {
 // MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
 export const createMapping = async (req, res) => {
   try {
-    const { projectID, appConfig, playerConfig, filter } = req.body;
+    const { companyID, projectID, appConfig, playerConfig, filter } = req.body;
     const owner = req.session.username;
 
-    switch (true) {
-      case !projectID:
-        return res.status(400).json({ message: "ProjectID is required" });
-      case !appConfig:
-        return res.status(400).json({ message: "AppConfig is required" });
-      case !playerConfig:
-        return res.status(400).json({ message: "PlayerConfig is required" });
-      case !filter:
-        return res.status(400).json({ message: "Filter is required" });
-    }
-
-    const project = await Project.findOne(
-      { status:"active", projectID },
-      { owners: 1, editors: 1 }
-    );
+    // Check if Project exists & Authorized
+    const project = await Project.findOne({ status: "active", projectID });
 
     switch (true) {
       case !project:
@@ -417,23 +380,73 @@ export const createMapping = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
-    // Create new master document or update existing
+    // Check if AppConfig & PlayerConfig exists
+    const appConfigDoc = await AppConfig.findOne({
+      status: "active",
+      configID: appConfig.configID,
+    });
+    const playerConfigDoc = await PlayerConfig.findOne({
+      status: "active",
+      configID: playerConfig.configID,
+    });
+
+    switch (true) {
+      case !appConfigDoc:
+        return res.status(404).json({ message: "AppConfig not found" });
+      case !playerConfigDoc:
+        return res.status(404).json({ message: "PlayerConfig not found" });
+    }
+
+    // const mergedFilter = {};
+
+    // project.filters.map((filter) => {
+    //   mergedFilter[filter.name] = {
+    //     priority: filter.priority,
+    //     value: "",
+    //   };
+    // });
+
+    // Object.keys(filter).map((key) => {
+    //   mergedFilter[key].value = filter[key];
+    // });
+
+    let priority = 0;
+    let filterCount = 0;
+
+    project.filters.map((item) => {
+      Object.keys(filter).map((key) => {
+        if (item.name === key && filter[key] !== "ALL") {
+          priority += item.priority;
+          filterCount += 1;
+        }
+      });
+    });
+
+    const filterDetails = {
+      priority,
+      filterCount,
+    };
+
     const document = await Master.findOneAndUpdate(
       {
         projectID,
         filter,
       },
       {
+        companyID,
         projectID,
         appConfig,
         playerConfig,
         filter,
+        filterDetails,
+        status: "active",
       },
       { upsert: true, new: true }
     );
 
     res.status(201).json({ message: "Success", document });
   } catch (error) {
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -445,10 +458,7 @@ export const deleteMapping = async (req, res) => {
     const owner = req.session.username;
 
     // Check if Project exists & Authorized
-    const project = await Project.findOne(
-      { status:"active", projectID },
-      { owners: 1, editors: 1, _id: 0 }
-    );
+    const project = await Project.findOne({ status: "active", projectID });
 
     switch (true) {
       case !project:
@@ -457,71 +467,84 @@ export const deleteMapping = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
-    const document = await Master.findOneAndDelete({
-      projectID,
-      filter,
-    });
+    const masterDoc = await Master.findOneAndUpdate(
+      {
+        projectID,
+        filter,
+        status: "active",
+      },
+      {
+        status: "inactive",
+      }
+    );
 
-    if (!document) {
+    if (!masterDoc) {
       return res.status(404).json({ message: "Mapping not found" });
     }
 
     res.status(200).json({ message: "Success" });
   } catch (error) {
-    return res.status(500).send(error.message);
+    return res.status(500).send(error);
   }
 };
 
-// GET MAPPING FROM FILTER PARAMS (SCALE SERVER)
+// GET MAPPING FROM FILTER PARAMS
 export const getMapping = async (req, res) => {
   try {
-    const { projectID, country, subscription, os, osver, nocache } = req.query;
-    const key = `${projectID}-${country}-${subscription}-${os}-${osver}`;
+    const { projectID, filter } = req.body;
 
-    // Try getting data from cache
-    const data = await client.get(key);
-
-    if (data && !nocache) {
-      return res.status(200).json(JSON.parse(data));
-    } else {
-      const document = await Master.findOne(
-        {
-          projectID,
-          "filter.country": country || "",
-          "filter.subscription": subscription || "",
-          "filter.os": os || "",
-          "filter.osver": osver || "",
-        },
-        {
-          _id: 0,
-          appConfig: 1,
-          playerConfig: 1,
-          filter: 1,
-        }
-      );
-
-      if (!document) {
-        const defaultConfig = {
-          appConfig: {
-            configID: "ac_default",
-            params: {},
-          },
-          playerConfig: {
-            configID: "pc_default",
-            params: {},
-          },
-        };
-
-        return res
-          .status(404)
-          .json({ message: "Mapping not found", defaultConfig });
-      }
-
-      // Store document in cache
-      await client.set(key, JSON.stringify(document), "EX", 300);
-      res.status(200).json(document);
+    switch (true) {
+      case !projectID:
+        return res.status(400).json({ message: "ProjectID is required" });
+      case !filter:
+        return res.status(400).json({ message: "Filter is required" });
     }
+
+    const masters = await Master.findOne({
+      projectID,
+      status: "active",
+      filter,
+    }, {
+      _id: 0,
+      __v: 0,
+      status: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    });
+
+    if (!masters) {
+      return res.status(200).json({ code: "NO_MAPPING" ,message: "Mapping not found",
+        mappings: {
+          appConfig: {},
+          playerConfig: {},
+          filter: {},
+        }
+       });
+    }
+
+    // const sortedMasters = masters.sort((a, b) => {
+    //   if (a.filterDetails.filterCount === b.filterDetails.filterCount) {
+    //     return b.filterDetails.priority - a.filterDetails.priority;
+    //   }
+    //   return a.filterDetails.filterCount - b.filterDetails.filterCount;
+    // });
+
+    // const finalMaster = sortedMasters[0];
+
+    const appConfig = masters.appConfig?.params || {};
+    const playerConfig = masters.playerConfig?.params || {};
+
+    const resObj = {
+      appConfig,
+      playerConfig,
+      filter: masters.filter,
+      projectID: masters.projectID,
+      companyID: masters.companyID
+    };
+
+    res.status(200).json({ code: "FOUND", message: "Success", mappings: masters });
   } catch (error) {
+    console.log(error.message)
     return res.status(500).send(error.message);
   }
 };

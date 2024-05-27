@@ -52,7 +52,6 @@ const companySchema = new mongoose.Schema(
       },
     ],
 
-    projects: [String],
     employees: [String],
   },
   { timestamps: true }

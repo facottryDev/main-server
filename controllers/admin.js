@@ -1,7 +1,8 @@
 import { generateID, sendMail } from "../lib/helpers.js";
 import Company from "../models/company.js";
 import Project from "../models/project.js";
-import Admin from "../models/admin.js";
+import AppConfig from "../models/appConfig.js";
+import PlayerConfig from "../models/playerConfig.js";
 
 // GET ADMIN INFO
 export const getAdmin = async (req, res) => {
@@ -62,6 +63,7 @@ export const getAdmin = async (req, res) => {
       owners: project.owners,
       editors: project.owners.includes(email) ? project.editors : [],
       viewers: project.owners.includes(email) ? project.viewers : [],
+      filters: project.filters,
     }));
 
     return res
@@ -131,7 +133,6 @@ export const deactivateCompany = async (req, res) => {
 
     const company = await Company.findOne({
       status: "active",
-      status: "active",
       owners: { $in: [owner] },
     });
 
@@ -140,8 +141,20 @@ export const deactivateCompany = async (req, res) => {
       return res.status(404).json({ message: "Company not found" });
     }
 
-    // Update the status of all projects under the company
-    await Project.updateMany(
+    // Update the status of all projects under the company and return projectIDs
+    const projects = await Project.updateMany(
+      { status: "active", companyID: company.companyID },
+      { status: "inactive" }
+    );
+
+    // Update the status of all appConfigs under the company
+    await AppConfig.updateMany(
+      { status: "active", companyID: company.companyID },
+      { status: "inactive" }
+    );
+
+    // Update the status of all playerConfigs under the company
+    await PlayerConfig.updateMany(
       { status: "active", companyID: company.companyID },
       { status: "inactive" }
     );
@@ -152,7 +165,7 @@ export const deactivateCompany = async (req, res) => {
 
     res.status(200).json({ message: "Company deactivated successfully" });
   } catch (error) {
-    return res.status(500).send(error.message);
+    return res.status(500).send(error);
   }
 };
 
@@ -265,6 +278,13 @@ export const addProject = async (req, res) => {
       });
     }
 
+    // Add default filters
+    const filters = [
+      { name: "COUNTRY", priority: 50, values: [] },
+      { name: "SUBSCRIPTION", priority: 49, values: [] },
+      { name: "OS", priority: 48, values: [] },
+    ];
+
     // Create new project
     const newProject = new Project({
       projectID,
@@ -272,13 +292,10 @@ export const addProject = async (req, res) => {
       type,
       companyID: company.companyID,
       owners: [owner],
+      filters,
     });
 
     await newProject.save();
-
-    // Update company document
-    company.projects.push(projectID);
-    await company.save();
 
     const projectDetails = {
       projectID: newProject.projectID,
@@ -393,9 +410,10 @@ export const deleteProjectUser = async (req, res) => {
       return res.status(404).json({ message: "User not found in project" });
     }
 
-    if(project.owners.includes(email) && project.owners.length === 1) {
+    if (project.owners.includes(email) && project.owners.length === 1) {
       return res.status(400).json({
-        message: "You are the only owner of this project. Transfer ownership before leaving.",
+        message:
+          "You are the only owner of this project. Transfer ownership before leaving.",
       });
     }
 
@@ -437,9 +455,10 @@ export const changeAccess = async (req, res) => {
       return res.status(404).json({ message: "User not found in project" });
     }
 
-    if(project.owners.includes(email) && project.owners.length === 1) {
+    if (project.owners.includes(email) && project.owners.length === 1) {
       return res.status(400).json({
-        message: "You are the only owner of this project. Make someone else owner before changing.",
+        message:
+          "You are the only owner of this project. Make someone else owner before changing.",
       });
     }
 
@@ -456,68 +475,6 @@ export const changeAccess = async (req, res) => {
 
     res.status(200).json({ message: "User updated successfully" });
   } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// MANUALLY ADD USER TO PROJECT - PROJECT OWNER
-export const addAdminToProject = async (req, res) => {
-  try {
-    const { projectID, email, role } = req.body;
-    const owner = req.session.username;
-
-    const project = await Project.findOne({ status: "active", projectID });
-
-    // Check if project exists and user is owner
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    if (!project.owners.includes(owner)) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    // Check if given email exists in same company
-    const admin = await Admin.findOne({ email });
-    if (!admin) {
-      return res.status(404).json({ message: "Email not registered" });
-    }
-
-    if (admin.companyID !== project.companyID) {
-      return res
-        .status(400)
-        .json({ message: "User does not belong to same company" });
-    }
-
-    // Check if user already exists in project
-    if (
-      project.owners.includes(email) ||
-      project.editors.includes(email) ||
-      project.viewers.includes(email)
-    ) {
-      return res
-        .status(400)
-        .json({ message: `User already exists in project` });
-    }
-
-    // Update Project document
-    project[role + "s"].push(email);
-    await project.save();
-
-    // Update User document
-    await Admin.updateOne(
-      { email },
-      { $push: { projects: { projectID, role } } }
-    );
-
-    res.status(200).json({ message: "User added to project successfully" });
-  } catch (error) {
-    if (error.details) {
-      return res
-        .status(400)
-        .json(error.details.map((detail) => detail.message).join(", "));
-    }
-
     return res.status(500).send(error.message);
   }
 };
@@ -726,11 +683,12 @@ export const leaveCompany = async (req, res) => {
         .status(404)
         .json({ message: "You don't belong to any company" });
     }
-    
+
     // Check if user is the only owner of the company
     if (company.owners.length === 1 && company.owners.includes(email)) {
       return res.status(400).json({
-        message: "You are the only owner of this company. Transfer ownership before leaving.",
+        message:
+          "You are the only owner of this company. Transfer ownership before leaving.",
       });
     }
 
@@ -865,7 +823,8 @@ export const leaveProject = async (req, res) => {
     // Check if user is the only owner of the project
     if (project.owners.length === 1 && project.owners.includes(email)) {
       return res.status(400).json({
-        message: "You are the only owner of this project. Transfer ownership before leaving.",
+        message:
+          "You are the only owner of this project. Transfer ownership before leaving.",
       });
     }
 
@@ -1026,6 +985,240 @@ export const sendProjectInvite = async (req, res) => {
       message: "Invitation sent successfully (MAIL DISABLED FOR DEMO)",
       inviteLink,
     });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// DELETE ADMIN ACCOUNT BY CALLING LEAVE COMPANY & LEAVE PROJECT
+export const deleteAdmin = async (req, res) => {
+  try {
+    // Leave Company
+    await leaveCompany(req, res);
+
+    // Leave All Projects
+    const email = req.session.username;
+    const projects = await Project.find({
+      status: "active",
+      $or: [{ owners: email }, { editors: email }, { viewers: email }],
+    });
+
+    const promises = projects.map(async (project) => {
+      const body = { projectID: project.projectID };
+      await leaveProject({ body }, res);
+    });
+
+    await Promise.all(promises);
+    return;
+  } catch (error) {
+    return error;
+  }
+};
+
+// ADD FILTER TO THE PROJECT - PROJECT OWNER
+export const addFilter = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID, filter } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if a filter with same filter.name or filter.priority exists
+    const filterExists = project.filters.find(
+      (f) => f.name === filter.name || f.priority === filter.priority
+    );
+
+    if (filterExists) {
+      return res.status(409).json({
+        message: "A filter with same name or priority already exists",
+      });
+    }
+
+    // Add filter to existing filters array
+    project.filters.push(filter);
+    await project.save();
+    res.status(200).json({ message: "Filter added successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// UPDATE A FILTER OF THE FILTERS OF A PROJECT - PROJECT OWNER
+export const updateFilter = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID, filter } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if filter exists
+    const filterExists = project.filters.find((f) => f.name === filter.name);
+
+    if (!filterExists) {
+      return res.status(404).json({ message: "Filter not found" });
+    }
+
+    // Check if no other filter with same priority exists
+    const priorityExists = project.filters.find(
+      (f) => f.priority === filter.priority && f.name !== filter.name
+    );
+
+    if (priorityExists) {
+      return res.status(409).json({
+        message: "A filter with same priority already exists",
+      });
+    }
+
+    // Update filter details
+    project.filters = project.filters.map((f) =>
+      f.name === filter.name ? filter : f
+    );
+    await project.save();
+    res.status(200).json({ message: "Filter updated successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// DELETE A FILTER FROM THE FILTERS OF A PROJECT - PROJECT OWNER
+export const deleteFilter = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID, filterName } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if filter exists
+    const filterExists = project.filters.find((f) => f.name === filterName);
+
+    if (!filterExists) {
+      return res.status(404).json({ message: "Filter not found" });
+    }
+
+    // Remove filter from filters array
+    project.filters = project.filters.filter((f) => f.name !== filterName);
+    await project.save();
+    res.status(200).json({ message: "Filter deleted successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// CLONE PROJECT - PROJECT OWNER
+export const cloneProject = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID, name } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if project with same name exists
+    const projectExists = await Project.findOne({
+      status: "active",
+      companyID: project.companyID,
+      name,
+    });
+
+    if (projectExists) {
+      return res.status(409).json({
+        message: "A project with same name already exists in the company",
+      });
+    }
+
+    // Clone project
+    const clonedProject = new Project({
+      projectID: generateID(name),
+      name,
+      type: project.type,
+      companyID: project.companyID,
+      owners: [owner],
+      filters: project.filters,
+    });
+
+    await clonedProject.save();
+
+    // Clone appConfigs, playerConfigs and masters from the original project
+    const appConfigs = await AppConfig.find({
+      status: "active",
+      projectID,
+    });
+
+    const playerConfigs = await PlayerConfig.find({
+      status: "active",
+      projectID,
+    });
+
+    const masters = await Master.find({
+      status: "active",
+      projectID,
+    });
+
+    const promises = appConfigs.map(async (appConfig) => {
+      const clonedAppConfig = new AppConfig({
+        ...appConfig.toObject(),
+        projectID: clonedProject.projectID,
+      });
+      await clonedAppConfig.save();
+    });
+
+    await Promise.all(promises);
+
+    const promises2 = playerConfigs.map(async (playerConfig) => {
+      const clonedPlayerConfig = new PlayerConfig({
+        ...playerConfig.toObject(),
+        projectID: clonedProject.projectID,
+      });
+      await clonedPlayerConfig.save();
+    });
+
+    await Promise.all(promises2);
+    
+    const promises3 = masters.map(async (master) => {
+      const clonedMaster = new Master({
+        ...master.toObject(),
+        projectID: clonedProject.projectID,
+      });
+      await clonedMaster.save();
+    });
+
+    await Promise.all(promises3);
+    res.status(200).json({ message: "Project cloned successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }

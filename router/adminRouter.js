@@ -24,6 +24,7 @@ import {
   deleteFilter,
   addFilter,
   updateFilter,
+  cloneProject,
 } from "../controllers/admin.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -51,6 +52,7 @@ router.post("/project/reject-request", rejectJoinProjectRequest);
 router.post("/project/invite", sendProjectInvite);
 router.post("/project/delete-user", deleteProjectUser);
 router.post('/project/change-access', changeAccess);
+router.post('/project/clone', cloneProject);
 router.post('/filter/add', addFilter);
 router.post('/filter/update', updateFilter);
 router.post('/filter/delete', deleteFilter);

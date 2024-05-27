@@ -292,7 +292,7 @@ export const addProject = async (req, res) => {
       type,
       companyID: company.companyID,
       owners: [owner],
-      filters
+      filters,
     });
 
     await newProject.save();
@@ -1126,6 +1126,99 @@ export const deleteFilter = async (req, res) => {
     project.filters = project.filters.filter((f) => f.name !== filterName);
     await project.save();
     res.status(200).json({ message: "Filter deleted successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// CLONE PROJECT - PROJECT OWNER
+export const cloneProject = async (req, res) => {
+  try {
+    const owner = req.session.username;
+    const { projectID, name } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if project with same name exists
+    const projectExists = await Project.findOne({
+      status: "active",
+      companyID: project.companyID,
+      name,
+    });
+
+    if (projectExists) {
+      return res.status(409).json({
+        message: "A project with same name already exists in the company",
+      });
+    }
+
+    // Clone project
+    const clonedProject = new Project({
+      projectID: generateID(name),
+      name,
+      type: project.type,
+      companyID: project.companyID,
+      owners: [owner],
+      filters: project.filters,
+    });
+
+    await clonedProject.save();
+
+    // Clone appConfigs, playerConfigs and masters from the original project
+    const appConfigs = await AppConfig.find({
+      status: "active",
+      projectID,
+    });
+
+    const playerConfigs = await PlayerConfig.find({
+      status: "active",
+      projectID,
+    });
+
+    const masters = await Master.find({
+      status: "active",
+      projectID,
+    });
+
+    const promises = appConfigs.map(async (appConfig) => {
+      const clonedAppConfig = new AppConfig({
+        ...appConfig.toObject(),
+        projectID: clonedProject.projectID,
+      });
+      await clonedAppConfig.save();
+    });
+
+    await Promise.all(promises);
+
+    const promises2 = playerConfigs.map(async (playerConfig) => {
+      const clonedPlayerConfig = new PlayerConfig({
+        ...playerConfig.toObject(),
+        projectID: clonedProject.projectID,
+      });
+      await clonedPlayerConfig.save();
+    });
+
+    await Promise.all(promises2);
+    
+    const promises3 = masters.map(async (master) => {
+      const clonedMaster = new Master({
+        ...master.toObject(),
+        projectID: clonedProject.projectID,
+      });
+      await clonedMaster.save();
+    });
+
+    await Promise.all(promises3);
+    res.status(200).json({ message: "Project cloned successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }

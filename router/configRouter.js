@@ -9,6 +9,7 @@ import {
   deleteConfig,
   modifyConfig,
   getMapping,
+  cloneConfig,
 } from "../controllers/config.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -19,6 +20,7 @@ router.post("/add-app-config", addAppConfig);
 router.post("/add-player-config", addPlayerConfig);
 router.delete("/delete", deleteConfig);
 router.post("/update", modifyConfig);
+router.post("/clone", cloneConfig);
 router.get("/get-app-configs", getAllAppConfigs);
 router.get("/get-player-configs", getAllPlayerConfigs);
 

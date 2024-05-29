@@ -11,6 +11,7 @@ import {
   cloneConfig,
   getActiveMapping,
   getMappingScale,
+  getAllMappings,
 } from "../controllers/config.js";
 import { isAuth } from "../lib/middlewares.js";
 const router = Router();
@@ -26,8 +27,9 @@ router.post("/update", modifyConfig);
 router.post("/clone", cloneConfig);
 router.post("/create-mapping", createMapping);
 router.post("/delete-mapping", deleteMapping);
-router.post("/get-mapping", getActiveMapping);
-router.post("/get-mapping-scale", getMappingScale);
+router.post("/mapping/active", getActiveMapping);
+router.post("/mapping/all", getAllMappings);
+router.post("/mapping/scale", getMappingScale);
 
 router.get("/", (req, res) => {
   res.status(200).json({ message: "Config Router" });

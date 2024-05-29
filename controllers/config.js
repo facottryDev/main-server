@@ -546,6 +546,35 @@ export const getActiveMapping = async (req, res) => {
   }
 };
 
+// GET ALL MAPPINGS - PROJECT OWNER / EDITOR
+export const getAllMappings = async (req, res) => {
+  try {
+    const { projectID } = req.body;
+    const owner = req.session.username;
+
+    console.log(projectID, owner)
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne({ status: "active", projectID });
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(owner) && !project.editors.includes(owner):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const result = await Master.find(
+      { status: "active", projectID },
+      { _id: 0, __v: 0 }
+    );
+
+    res.status(200).json({code: "FOUND", message: "Success", mappings: result});
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
 // GET MAPPING FROM FILTER PARAMS
 export const getMappingScale = async (req, res) => {
   try {

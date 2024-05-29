@@ -542,7 +542,7 @@ export const getMapping = async (req, res) => {
       companyID: masters.companyID
     };
 
-    res.status(200).json({ code: "FOUND", message: "Success", mappings: masters });
+    res.status(200).json({ code: "FOUND", message: "Success", mappings: resObj });
   } catch (error) {
     console.log(error.message)
     return res.status(500).send(error.message);

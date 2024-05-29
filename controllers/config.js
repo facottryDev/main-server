@@ -488,8 +488,50 @@ export const deleteMapping = async (req, res) => {
   }
 };
 
+
 // GET MAPPING FROM FILTER PARAMS
-export const getMapping = async (req, res) => {
+export const getActiveMapping = async (req, res) => {
+  try {
+    const { projectID, filter } = req.body;
+
+    switch (true) {
+      case !projectID:
+        return res.status(400).json({ message: "ProjectID is required" });
+      case !filter:
+        return res.status(400).json({ message: "Filter is required" });
+    }
+
+    const master = await Master.findOne({
+      projectID,
+      status: "active",
+      filter,
+    }, {
+      _id: 0,
+      __v: 0,
+      status: 0,
+      createdAt: 0,
+      updatedAt: 0,
+    });
+
+    if(!master) {
+      return res.status(200).json({ code: "NO_MAPPING" ,message: "Mapping not found",
+        mappings: {
+          appConfig: {},
+          playerConfig: {},
+          filter: {},
+        }
+       });
+    }
+
+    res.status(200).json({ code: "FOUND", message: "Success", mappings: master });
+  } catch (error) {
+    console.log(error.message)
+    return res.status(500).send(error.message);
+  }
+};
+
+// GET MAPPING FROM FILTER PARAMS
+export const getMappingScale = async (req, res) => {
   try {
     const { projectID, filter } = req.body;
 
@@ -521,15 +563,6 @@ export const getMapping = async (req, res) => {
         }
        });
     }
-
-    // const sortedMasters = masters.sort((a, b) => {
-    //   if (a.filterDetails.filterCount === b.filterDetails.filterCount) {
-    //     return b.filterDetails.priority - a.filterDetails.priority;
-    //   }
-    //   return a.filterDetails.filterCount - b.filterDetails.filterCount;
-    // });
-
-    // const finalMaster = sortedMasters[0];
 
     const appConfig = masters.appConfig?.params || {};
     const playerConfig = masters.playerConfig?.params || {};

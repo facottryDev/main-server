@@ -170,7 +170,7 @@ export const deactivateCompany = async (req, res) => {
 };
 
 // UPDATE COMPANY - COMPANY OWNER
-export const updateCompany = async (req, res) => {
+export const updateCompanyDetails = async (req, res) => {
   try {
     const owner = req.session.username;
     const { name, address } = req.body;
@@ -279,11 +279,10 @@ export const addProject = async (req, res) => {
     }
 
     // Add default filters
-    const filters = [
-      { name: "COUNTRY", priority: 50, values: [] },
-      { name: "SUBSCRIPTION", priority: 49, values: [] },
-      { name: "OS", priority: 48, values: [] },
-    ];
+    const filters = {
+      COUNTRY: { default: "IN", values: ["IN"] },
+      SUBSCRIPTION: { default: "FREE", values: ["FREE"] },
+    };
 
     // Create new project
     const newProject = new Project({
@@ -345,7 +344,7 @@ export const deactivateProject = async (req, res) => {
 };
 
 // UPDATE PROJECT - PROJECT OWNER
-export const updateProject = async (req, res) => {
+export const updateProjectDetails = async (req, res) => {
   try {
     const owner = req.session.username;
     const { companyID, projectID, name, type } = req.body;
@@ -1032,19 +1031,24 @@ export const addFilter = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Check if a filter with same filter.name or filter.priority exists
-    const filterExists = project.filters.find(
-      (f) => f.name === filter.name || f.priority === filter.priority
-    );
-
-    if (filterExists) {
-      return res.status(409).json({
-        message: "A filter with same name or priority already exists",
-      });
+    // Check if filter.name exist as a key in project.filters
+    if (project.filters[filter.name]) {
+      return res.status(409).json({ message: "Filter already exists" });
     }
 
-    // Add filter to existing filters array
-    project.filters.push(filter);
+    // Check if default value is present in values
+    if (!filter.values.includes(filter.default)) {
+      return res.status(400).json({ message: "Default value not in values" });
+    }
+
+    // Add filter to project
+    project.filters[filter.name] = {
+      default: filter.default,
+      values: filter.values,
+    };
+
+    console.log(project.filters)
+
     await project.save();
     res.status(200).json({ message: "Filter added successfully" });
   } catch (error) {
@@ -1208,7 +1212,7 @@ export const cloneProject = async (req, res) => {
     });
 
     await Promise.all(promises2);
-    
+
     const promises3 = masters.map(async (master) => {
       const clonedMaster = new Master({
         ...master.toObject(),

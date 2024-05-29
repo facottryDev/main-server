@@ -295,7 +295,7 @@ export const cloneConfig = async (req, res) => {
 
     return res.status(200).json({ message: "Success" });
   } catch (error) {
-    console.log(error.message)
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -397,54 +397,64 @@ export const createMapping = async (req, res) => {
         return res.status(404).json({ message: "PlayerConfig not found" });
     }
 
-    // const mergedFilter = {};
+    let searchFilter = {};
+    for (const key in filter) {
+      if (filter[key] === "") {
+        searchFilter[key] = project.filters[key].default;
+      } else if (filter[key] === "ALL") {
+        searchFilter[key] = project.filters[key].values;
+      } else {
+        searchFilter[key] = filter[key];
+      }
+    }
 
-    // project.filters.map((filter) => {
-    //   mergedFilter[filter.name] = {
-    //     priority: filter.priority,
-    //     value: "",
-    //   };
-    // });
-
-    // Object.keys(filter).map((key) => {
-    //   mergedFilter[key].value = filter[key];
-    // });
-
-    let priority = 0;
-    let filterCount = 0;
-
-    project.filters.map((item) => {
-      Object.keys(filter).map((key) => {
-        if (item.name === key && filter[key] !== "ALL") {
-          priority += item.priority;
-          filterCount += 1;
+    let filterConditions = Object.entries(searchFilter).reduce(
+      (acc, [key, value]) => {
+        if (Array.isArray(value)) {
+          let newAcc = [];
+          for (let val of value) {
+            if (acc.length === 0) {
+              newAcc.push({ [key]: val });
+            } else {
+              for (let obj of acc) {
+                newAcc.push({ ...obj, [key]: val });
+              }
+            }
+          }
+          return newAcc;
+        } else {
+          if (acc.length === 0) {
+            return [{ [key]: value }];
+          } else {
+            return acc.map((obj) => ({ ...obj, [key]: value }));
+          }
         }
-      });
-    });
-
-    const filterDetails = {
-      priority,
-      filterCount,
-    };
-
-    const document = await Master.findOneAndUpdate(
-      {
-        projectID,
-        filter,
       },
-      {
-        companyID,
-        projectID,
-        appConfig,
-        playerConfig,
-        filter,
-        filterDetails,
-        status: "active",
-      },
-      { upsert: true, new: true }
+      []
     );
 
-    res.status(201).json({ message: "Success", document });
+    console.log(filterConditions);
+
+    // create or update Master
+    for (let condition of filterConditions) {
+      await Master.findOneAndUpdate(
+        {
+          projectID,
+          filter: condition,
+          status: "active",
+        },
+        {
+          appConfig,
+          playerConfig,
+          filter: condition,
+          projectID,
+          companyID,
+        },
+        { upsert: true }
+      );
+    }
+
+    res.status(200).json({ message: "Success" });
   } catch (error) {
     console.log(error.message);
     return res.status(500).send(error.message);
@@ -488,7 +498,6 @@ export const deleteMapping = async (req, res) => {
   }
 };
 
-
 // GET MAPPING FROM FILTER PARAMS
 export const getActiveMapping = async (req, res) => {
   try {
@@ -501,31 +510,38 @@ export const getActiveMapping = async (req, res) => {
         return res.status(400).json({ message: "Filter is required" });
     }
 
-    const master = await Master.findOne({
-      projectID,
-      status: "active",
-      filter,
-    }, {
-      _id: 0,
-      __v: 0,
-      status: 0,
-      createdAt: 0,
-      updatedAt: 0,
-    });
+    const master = await Master.findOne(
+      {
+        projectID,
+        status: "active",
+        filter,
+      },
+      {
+        _id: 0,
+        __v: 0,
+        status: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      }
+    );
 
-    if(!master) {
-      return res.status(200).json({ code: "NO_MAPPING" ,message: "Mapping not found",
+    if (!master) {
+      return res.status(200).json({
+        code: "NO_MAPPING",
+        message: "Mapping not found",
         mappings: {
           appConfig: {},
           playerConfig: {},
           filter: {},
-        }
-       });
+        },
+      });
     }
 
-    res.status(200).json({ code: "FOUND", message: "Success", mappings: master });
+    res
+      .status(200)
+      .json({ code: "FOUND", message: "Success", mappings: master });
   } catch (error) {
-    console.log(error.message)
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -542,26 +558,31 @@ export const getMappingScale = async (req, res) => {
         return res.status(400).json({ message: "Filter is required" });
     }
 
-    const masters = await Master.findOne({
-      projectID,
-      status: "active",
-      filter,
-    }, {
-      _id: 0,
-      __v: 0,
-      status: 0,
-      createdAt: 0,
-      updatedAt: 0,
-    });
+    const masters = await Master.findOne(
+      {
+        projectID,
+        status: "active",
+        filter,
+      },
+      {
+        _id: 0,
+        __v: 0,
+        status: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      }
+    );
 
     if (!masters) {
-      return res.status(200).json({ code: "NO_MAPPING" ,message: "Mapping not found",
+      return res.status(200).json({
+        code: "NO_MAPPING",
+        message: "Mapping not found",
         mappings: {
           appConfig: {},
           playerConfig: {},
           filter: {},
-        }
-       });
+        },
+      });
     }
 
     const appConfig = masters.appConfig?.params || {};
@@ -572,12 +593,14 @@ export const getMappingScale = async (req, res) => {
       playerConfig,
       filter: masters.filter,
       projectID: masters.projectID,
-      companyID: masters.companyID
+      companyID: masters.companyID,
     };
 
-    res.status(200).json({ code: "FOUND", message: "Success", mappings: resObj });
+    res
+      .status(200)
+      .json({ code: "FOUND", message: "Success", mappings: resObj });
   } catch (error) {
-    console.log(error.message)
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };

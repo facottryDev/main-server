@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
   {
+    googleId: {
+      type: String,
+    },
+    
     email: {
       type: String,
       required: [true, "Provide Email"],

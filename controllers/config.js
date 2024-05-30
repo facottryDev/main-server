@@ -8,7 +8,7 @@ import { generateID } from "../lib/helpers.js";
 export const addAppConfig = async (req, res) => {
   try {
     const { projectID, name, desc, params } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     switch (true) {
       case !projectID:
@@ -66,7 +66,7 @@ export const addAppConfig = async (req, res) => {
 export const addPlayerConfig = async (req, res) => {
   try {
     const { projectID, params, name, desc } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -120,7 +120,7 @@ export const addPlayerConfig = async (req, res) => {
 export const deleteConfig = async (req, res) => {
   try {
     const { configID } = req.query;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     if (configID.startsWith("ac")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
@@ -175,7 +175,7 @@ export const deleteConfig = async (req, res) => {
 export const modifyConfig = async (req, res) => {
   try {
     const { configID, params, name, desc } = req.body;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     if (configID.startsWith("ac")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
@@ -234,7 +234,7 @@ export const modifyConfig = async (req, res) => {
 export const cloneConfig = async (req, res) => {
   try {
     const { configID, name, desc, params } = req.body;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     if (configID.startsWith("ac")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
@@ -304,7 +304,7 @@ export const cloneConfig = async (req, res) => {
 export const getAllAppConfigs = async (req, res) => {
   try {
     const { projectID } = req.query;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
@@ -336,7 +336,7 @@ export const getAllAppConfigs = async (req, res) => {
 export const getAllPlayerConfigs = async (req, res) => {
   try {
     const { projectID } = req.query;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
@@ -368,7 +368,7 @@ export const getAllPlayerConfigs = async (req, res) => {
 export const createMapping = async (req, res) => {
   try {
     const { companyID, projectID, appConfig, playerConfig, filter } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -433,8 +433,6 @@ export const createMapping = async (req, res) => {
       []
     );
 
-    console.log(filterConditions);
-
     // create or update Master
     for (let condition of filterConditions) {
       await Master.findOneAndUpdate(
@@ -465,7 +463,7 @@ export const createMapping = async (req, res) => {
 export const deleteMapping = async (req, res) => {
   try {
     const { projectID, filter } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -550,7 +548,7 @@ export const getActiveMapping = async (req, res) => {
 export const getAllMappings = async (req, res) => {
   try {
     const { projectID } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     console.log(projectID, owner)
 

@@ -31,7 +31,14 @@ redisClient.connect().then(console.log("Redis Connected")).catch(console.error);
 
 // Middlewares
 const corsOptions = {
-  origin: "*",
+  origin:
+    process.env.NODE_ENV === "production"
+      ? [
+          "https://facottry-website-pearl.vercel.app",
+          "https://facottry-website-git-dev-facottrydevs-projects.vercel.app",
+          "https://client-sdk.vercel.app",
+        ]
+      : ["http://localhost:3000", "http://localhost:5173"],
   credentials: true,
   optionSuccessStatus: 200,
 };

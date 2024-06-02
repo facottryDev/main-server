@@ -31,13 +31,7 @@ redisClient.connect().then(console.log("Redis Connected")).catch(console.error);
 
 // Middlewares
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [
-          "https://facottry-website-pearl.vercel.app",
-          "https://client-sdk.vercel.app/",
-        ]
-      : ["http://localhost:3000", "http://localhost:5173"],
+  origin: "*",
   credentials: true,
   optionSuccessStatus: 200,
 };
@@ -87,14 +81,11 @@ passport.use(
           return done(null, user);
         }
 
-        console.log(profile);
-
         const newUser = new User({
           googleId: profile.id,
           email: profile.email,
           name: profile.displayName,
           profilePic: profile.picture,
-          password: profile.email,
         });
 
         await newUser.save();

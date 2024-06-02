@@ -1047,7 +1047,7 @@ export const addFilter = async (req, res) => {
       values: filter.values,
     };
 
-    console.log(project.filters)
+    project.markModified('filters');
 
     await project.save();
     res.status(200).json({ message: "Filter added successfully" });
@@ -1074,30 +1074,24 @@ export const updateFilter = async (req, res) => {
     }
 
     // Check if filter exists
-    const filterExists = project.filters.find((f) => f.name === filter.name);
+    const filterExists = Object.keys(project.filters).includes(filter.name);
 
     if (!filterExists) {
       return res.status(404).json({ message: "Filter not found" });
     }
 
-    // Check if no other filter with same priority exists
-    const priorityExists = project.filters.find(
-      (f) => f.priority === filter.priority && f.name !== filter.name
-    );
-
-    if (priorityExists) {
-      return res.status(409).json({
-        message: "A filter with same priority already exists",
-      });
-    }
-
     // Update filter details
-    project.filters = project.filters.map((f) =>
-      f.name === filter.name ? filter : f
-    );
+    project.filters[filter.name] = {
+      default: filter.default,
+      values: filter.values,
+    };
+
+    project.markModified('filters');
+
     await project.save();
     res.status(200).json({ message: "Filter updated successfully" });
   } catch (error) {
+    console.log(error.message)
     return res.status(500).send(error.message);
   }
 };

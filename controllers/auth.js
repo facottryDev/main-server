@@ -13,8 +13,8 @@ import { deleteAdmin } from "./admin.js";
 //LOGIN
 export const loginUser = async (req, res) => {
   try {
-    if (req.session.username || req.user.email) {
-      return res.status(400).send("Already logged in!");
+    if (req.session.username || req.user) {
+      return res.status(400).json({ message: "Already logged in" });
     }
 
     //Form Validation
@@ -30,7 +30,13 @@ export const loginUser = async (req, res) => {
     const user = await users.findOne({ status: "active", email });
 
     if (!user) {
-      return res.status(404).send("Not registered!");
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (!user.password) {
+      return res
+        .status(400)
+        .json({ message: "No password found! Use Social Sign In" });
     }
 
     //Verify Password
@@ -47,7 +53,7 @@ export const loginUser = async (req, res) => {
         req.sessionID,
         (err, result) => {
           if (err) {
-            console.error("Error adding session to active sessions:", err);
+            console.log("Error adding session to active sessions:", err);
           }
         }
       );
@@ -59,7 +65,7 @@ export const loginUser = async (req, res) => {
         message: `Login Successful`,
       });
     } else {
-      return res.status(400).send("Wrong Password");
+      return res.status(400).json({ message: "Invalid Credentials" });
     }
   } catch (error) {
     if (error.details) {
@@ -68,7 +74,7 @@ export const loginUser = async (req, res) => {
         .json(error.details.map((detail) => detail.message).join(", "));
     }
 
-    return res.status(500).send(error);
+    return res.status(500).send(error.message);
   }
 };
 
@@ -472,6 +478,33 @@ export const deleteUserAccount = async (req, res) => {
 
     revokeUserSessions(email);
     return res.status(200).send("Account deleted successfully");
+  } catch (error) {
+    return res.status(500).json(error.message);
+  }
+};
+
+// ADD NEW PASSWORD
+export const updatePassword = async (req, res) => {
+  try {
+    if (!req.session.username && !req.user) {
+      return res.status(400).json({ message: "Not logged in" });
+    }
+
+    const { password } = req.body;
+    const email = req.session.username || req.user.email;
+
+    const user = await users.findOne({ status: "active", email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User Not Found" });
+    }
+
+    // Hash password & save to mongoDB
+    const hash = await bcrypt.hash(password, 12);
+    user.password = hash;
+    await user.save();
+
+    return res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {
     return res.status(500).json(error.message);
   }

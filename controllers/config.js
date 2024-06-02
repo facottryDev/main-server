@@ -140,6 +140,12 @@ export const deleteConfig = async (req, res) => {
 
       appConfig.status = "inactive";
       await appConfig.save();
+
+      // Deactivate all mappings
+      await Master.updateMany(
+        { "appConfig.configID": configID },
+        { status: "inactive" }
+      );
     }
 
     if (configID.startsWith("pc")) {
@@ -163,6 +169,12 @@ export const deleteConfig = async (req, res) => {
 
       playerConfig.status = "inactive";
       await playerConfig.save();
+      
+      // Deactivate all mappings
+      await Master.updateMany(
+        { "playerConfig.configID": configID },
+        { status: "inactive" }
+      );
     }
 
     res.status(200).json({ message: "Success" });
@@ -196,7 +208,18 @@ export const modifyConfig = async (req, res) => {
       appConfig.params = params || appConfig.params;
       appConfig.name = name || appConfig.name;
       appConfig.desc = desc || appConfig.desc;
+
       await appConfig.save();
+
+      // Update name, desc, params in master docs also
+      await Master.updateMany(
+        { "appConfig.configID": configID },
+        {
+          "appConfig.name": name,
+          "appConfig.desc": desc,
+          "appConfig.params": params
+        }
+      );
     }
 
     if (configID.startsWith("pc")) {
@@ -222,6 +245,16 @@ export const modifyConfig = async (req, res) => {
       playerConfig.name = name || playerConfig.name;
       playerConfig.desc = desc || playerConfig.desc;
       await playerConfig.save();
+
+      // Update name, desc, params in master docs also
+      await Master.updateMany(
+        { "playerConfig.configID": configID },
+        {
+          "playerConfig.name": name,
+          "playerConfig.desc": desc,
+          "playerConfig.params": params,
+        }
+      );
     }
 
     return res.status(200).json({ message: "Success" });
@@ -390,9 +423,11 @@ export const createMapping = async (req, res) => {
       configID: playerConfig.configID,
     });
 
+    // For Loop for all type of configs.
+
     switch (true) {
       case !appConfigDoc:
-        return res.status(404).json({ message: "AppConfig not found" });
+        return res.status(404).json({ message: "AppConfig not found" }); // dont return, just log
       case !playerConfigDoc:
         return res.status(404).json({ message: "PlayerConfig not found" });
     }
@@ -406,7 +441,7 @@ export const createMapping = async (req, res) => {
       } else {
         searchFilter[key] = filter[key];
       }
-    }
+    } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
 
     let filterConditions = Object.entries(searchFilter).reduce(
       (acc, [key, value]) => {
@@ -431,7 +466,7 @@ export const createMapping = async (req, res) => {
         }
       },
       []
-    );
+    ); 
 
     // create or update Master
     for (let condition of filterConditions) {
@@ -550,7 +585,7 @@ export const getAllMappings = async (req, res) => {
     const { projectID } = req.body;
     const owner = req.session.username || req.user.email;
 
-    console.log(projectID, owner)
+    console.log(projectID, owner);
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -567,7 +602,9 @@ export const getAllMappings = async (req, res) => {
       { _id: 0, __v: 0 }
     );
 
-    res.status(200).json({code: "FOUND", message: "Success", mappings: result});
+    res
+      .status(200)
+      .json({ code: "FOUND", message: "Success", mappings: result });
   } catch (error) {
     return res.status(500).send(error.message);
   }

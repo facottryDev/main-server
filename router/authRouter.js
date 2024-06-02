@@ -10,6 +10,7 @@ import {
   fetchUserDetails,
   updateUserDetails,
   deleteUserAccount,
+  updatePassword,
 } from "../controllers/auth.js";
 import { isAuth } from "../lib/middlewares.js";
 import { Router } from "express";
@@ -27,6 +28,7 @@ router.post("/register", registerUser);
 router.post("/forgot", forgotPassword);
 router.post("/reset", resetPassword);
 router.delete("/delete-user", deleteUserAccount);
+router.post("/password/update", updatePassword);
 
 //GOOGLE OAUTH
 router.get(

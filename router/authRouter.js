@@ -40,18 +40,14 @@ router.get(
   passport.authenticate("google", { failureRedirect: "/auth/failed" }),
   (req, res) => {
     res.redirect(
-      process.env.NODE_ENV === "production"
-        ? "https://facottry-website-pearl.vercel.app/onboarding"
-        : "http://localhost:3000/onboarding"
+      process.env.CLIENT_URL + '/onboarding'
     );
   }
 );
 
 router.get("/failed", (req, res) => {
   res.redirect(
-    process.env.NODE_ENV === "production"
-      ? "https://facottry-website-pearl.vercel.app/auth/login"
-      : "http://localhost:3000/auth/login"
+    process.env.CLIENT_URL + '/auth/login'
   );
 });
 

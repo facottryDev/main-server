@@ -141,7 +141,7 @@ export const sendOTP = async (req, res) => {
       return res.status(400).json("No email provided!");
     }
 
-    if (req.session.username || req.user.email) {
+    if (req.session.username || req.user) {
       return res.status(403).json("Already logged in");
     }
 
@@ -199,6 +199,8 @@ export const sendOTP = async (req, res) => {
         .json(error.details.map((detail) => detail.message).join(", "));
     }
 
+    console.log(error.message)
+
     return res.status(500).json(error.message);
   }
 };
@@ -245,7 +247,7 @@ export const verifyOTP = async (req, res) => {
 //REGISTER
 export const registerUser = async (req, res) => {
   try {
-    if (req.session.username || req.user.email) {
+    if (req.session.username || req.user) {
       return res.status(400).send("Already logged in!");
     }
 
@@ -307,7 +309,7 @@ export const registerUser = async (req, res) => {
 //FORGOT PASSWORD
 export const forgotPassword = async (req, res) => {
   try {
-    if (req.session.username || req.user.email) {
+    if (req.session.username || req.user) {
       return res.status(400).send("Already logged in!");
     }
 

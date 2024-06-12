@@ -27,6 +27,7 @@
     "mongodb": "^6.3.0",
     "mongoose": "^7.2.2",
     "morgan": "^1.10.0",
+    "node-cron": "^3.0.3",
     "nodemailer": "^6.9.3",
     "otp-generator": "^4.0.1",
     "passport": "^0.7.0",

@@ -8,7 +8,6 @@ import Joi from "joi";
 import bcrypt from "bcrypt";
 import otpGenerator from "otp-generator";
 import { redisClient } from "../server.js";
-import { deleteAdmin } from "./admin.js";
 
 //LOGIN
 export const loginUser = async (req, res) => {

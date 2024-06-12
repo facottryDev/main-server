@@ -14,6 +14,7 @@ import session from "express-session";
 import passport from "passport";
 import GoogleStrategy from "passport-google-oauth2";
 import User from "./models/user.js";
+import { startCronJobs } from "./lib/cron.js";
 
 // Const declarations
 dotenv.config();
@@ -123,6 +124,7 @@ mongoose
   .then(
     app.listen(PORT, () => {
       console.log("Connected to MongoDB");
+      startCronJobs();
       if (process.env.NODE_ENV === "production") {
         console.log("Production Ready");
       } else {

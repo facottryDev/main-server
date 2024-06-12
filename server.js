@@ -11,6 +11,9 @@ import userRouter from "./router/userRouter.js";
 import { createClient } from "redis";
 import RedisStore from "connect-redis";
 import session from "express-session";
+import passport from "passport";
+import GoogleStrategy from "passport-google-oauth2";
+import User from "./models/user.js";
 
 // Const declarations
 dotenv.config();
@@ -30,13 +33,22 @@ redisClient.connect().then(console.log("Redis Connected")).catch(console.error);
 const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
-      ? ["https://facottry-website-pearl.vercel.app", "https://client-sdk.vercel.app/"]
+      ? [
+          "https://facottry-website-pearl.vercel.app",
+          "https://facottry-website-git-dev-facottrydevs-projects.vercel.app",
+          "https://client-sdk.vercel.app",
+        ]
       : ["http://localhost:3000", "http://localhost:5173"],
   credentials: true,
   optionSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
+
+if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
+app.use(express.json());
+app.use(morgan("tiny"));
+app.use(helmet());
 
 app.use(
   session({
@@ -57,10 +69,53 @@ app.use(
   })
 );
 
-if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
-app.use(express.json());
-app.use(morgan("tiny"));
-app.use(helmet());
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(
+  new GoogleStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL,
+      passReqToCallback: true,
+    },
+    async function (request, accessToken, refreshToken, profile, done) {
+      try {
+        const user = await User.findOne({ email: profile.email });
+
+        if (user) {
+          return done(null, user);
+        }
+
+        const newUser = new User({
+          googleId: profile.id,
+          email: profile.email,
+          name: profile.displayName,
+          profilePic: profile.picture,
+        });
+
+        await newUser.save();
+        return done(null, newUser);
+      } catch (err) {
+        return done(err, null);
+      }
+    }
+  )
+);
+
+passport.serializeUser(function (user, done) {
+  done(null, user.id);
+});
+
+passport.deserializeUser(async function (id, done) {
+  try {
+    const user = await User.findById(id);
+    done(null, user);
+  } catch (err) {
+    done(err, null);
+  }
+});
 
 // MongoDB Connection
 mongoose

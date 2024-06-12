@@ -13,8 +13,8 @@ import {
   getAdmin,
   deactivateCompany,
   deactivateProject,
-  updateCompany,
-  updateProject,
+  updateCompanyDetails,
+  updateProjectDetails,
   rejectJoinCompanyRequest,
   deleteEmployee,
   acceptJoinProjectRequest,
@@ -36,7 +36,7 @@ router.get("/get-admin", getAdmin);
 // FOR COMPANY OWNERS
 router.post("/company/create", addCompany);
 router.delete("/company/deactivate", deactivateCompany);
-router.post("/company/update", updateCompany);
+router.post("/company/update", updateCompanyDetails);
 router.post("/company/accept-request", acceptJoinCompanyRequest);
 router.post("/company/reject-request", rejectJoinCompanyRequest);
 router.post("/company/delete-employee", deleteEmployee);
@@ -46,7 +46,7 @@ router.get("/company/verify-invite", verifyCompanyInvite);
 // FOR PROJECT OWNERS
 router.post("/add-project", addProject);
 router.post("/project/deactivate", deactivateProject);
-router.post("/update-project", updateProject);
+router.post("/update-project", updateProjectDetails);
 router.post("/project/accept-request", acceptJoinProjectRequest);
 router.post("/project/reject-request", rejectJoinProjectRequest);
 router.post("/project/invite", sendProjectInvite);

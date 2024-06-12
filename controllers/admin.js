@@ -7,7 +7,7 @@ import PlayerConfig from "../models/playerConfig.js";
 // GET ADMIN INFO
 export const getAdmin = async (req, res) => {
   try {
-    const email = req.session.username;
+    const email = req.session.username || req.user.email;
 
     const company = await Company.findOne({
       status: "active",
@@ -78,7 +78,7 @@ export const getAdmin = async (req, res) => {
 export const addCompany = async (req, res) => {
   try {
     const { name, address } = req.body;
-    const email = req.session.username;
+    const email = req.session.username || req.user.email;
 
     // Check if company already exists
     const companyExists = await Company.findOne({
@@ -129,7 +129,7 @@ export const addCompany = async (req, res) => {
 // DEACTIVATE COMPANY - COMPANY OWNER
 export const deactivateCompany = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     const company = await Company.findOne({
       status: "active",
@@ -170,9 +170,9 @@ export const deactivateCompany = async (req, res) => {
 };
 
 // UPDATE COMPANY - COMPANY OWNER
-export const updateCompany = async (req, res) => {
+export const updateCompanyDetails = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { name, address } = req.body;
 
     const company = await Company.findOne({
@@ -199,7 +199,7 @@ export const updateCompany = async (req, res) => {
 // DELETE EMPLOYEE FROM COMPANY - COMPANY OWNER
 export const deleteEmployee = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email } = req.body;
 
     const company = await Company.findOne({
@@ -247,7 +247,7 @@ export const deleteEmployee = async (req, res) => {
 export const addProject = async (req, res) => {
   try {
     const { name, type } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     const projectID = generateID(name);
 
@@ -279,11 +279,10 @@ export const addProject = async (req, res) => {
     }
 
     // Add default filters
-    const filters = [
-      { name: "COUNTRY", priority: 50, values: [] },
-      { name: "SUBSCRIPTION", priority: 49, values: [] },
-      { name: "OS", priority: 48, values: [] },
-    ];
+    const filters = {
+      COUNTRY: { default: "IN", values: ["IN"] },
+      SUBSCRIPTION: { default: "FREE", values: ["FREE"] },
+    };
 
     // Create new project
     const newProject = new Project({
@@ -320,7 +319,7 @@ export const addProject = async (req, res) => {
 //DEACTIVATE PROJECT - PROJECT OWNER
 export const deactivateProject = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { projectID } = req.body;
 
     const project = await Project.findOne({
@@ -345,9 +344,9 @@ export const deactivateProject = async (req, res) => {
 };
 
 // UPDATE PROJECT - PROJECT OWNER
-export const updateProject = async (req, res) => {
+export const updateProjectDetails = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { companyID, projectID, name, type } = req.body;
 
     const projectExists = await Project.findOne({
@@ -387,7 +386,7 @@ export const updateProject = async (req, res) => {
 // DELETE USER FROM PROJECT - PROJECT OWNER
 export const deleteProjectUser = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email, projectID } = req.body;
 
     const project = await Project.findOne({
@@ -432,7 +431,7 @@ export const deleteProjectUser = async (req, res) => {
 // CHANGE ACCESS RIGHT OF USER IN PROJECT - PROJECT OWNER
 export const changeAccess = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email, projectID, role } = req.body;
 
     const project = await Project.findOne({
@@ -482,7 +481,7 @@ export const changeAccess = async (req, res) => {
 // CREATE A JOIN REQUEST TO COMPANY - USER
 export const createJoinCompanyRequest = async (req, res) => {
   try {
-    const email = req.session.username;
+    const email = req.session.username || req.user.email;
     const { companyID } = req.body;
 
     // Check if user is already part of a company
@@ -522,7 +521,7 @@ export const createJoinCompanyRequest = async (req, res) => {
 // ACCEPT JOIN REQUEST TO COMPANY - COMPANY OWNER
 export const acceptJoinCompanyRequest = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email } = req.body;
 
     const company = await Company.findOne({
@@ -573,7 +572,7 @@ export const acceptJoinCompanyRequest = async (req, res) => {
 // REJECT JOIN REQUEST TO COMPANY - COMPANY OWNER
 export const rejectJoinCompanyRequest = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email } = req.body;
 
     const company = await Company.findOne({
@@ -606,7 +605,7 @@ export const rejectJoinCompanyRequest = async (req, res) => {
 // CREATE A JOIN REQUEST TO PROJECT - ADMIN
 export const createJoinProjectRequest = async (req, res) => {
   try {
-    const email = req.session.username;
+    const email = req.session.username || req.user.email;
     const { projectID } = req.body;
 
     // Check if user is in a company
@@ -670,7 +669,7 @@ export const createJoinProjectRequest = async (req, res) => {
 // LEAVE COMPANY - ADMIN
 export const leaveCompany = async (req, res) => {
   try {
-    const email = req.session.username;
+    const email = req.session.username || req.user.email;
 
     const company = await Company.findOne({
       status: "active",
@@ -722,7 +721,7 @@ export const leaveCompany = async (req, res) => {
 // ACCEPT JOIN REQUEST TO PROJECT FROM USER - PROJECT OWNER
 export const acceptJoinProjectRequest = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email, projectID, role } = req.body;
 
     switch (true) {
@@ -771,7 +770,7 @@ export const acceptJoinProjectRequest = async (req, res) => {
 // REJECT JOIN REQUEST TO PROJECT FROM USER - PROJECT OWNER
 export const rejectJoinProjectRequest = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email, projectID } = req.body;
 
     const project = await Project.findOne({ status: "active", projectID });
@@ -806,7 +805,7 @@ export const rejectJoinProjectRequest = async (req, res) => {
 // LEAVE PROJECT - ADMIN
 export const leaveProject = async (req, res) => {
   try {
-    const email = req.session.username;
+    const email = req.session.username || req.user.email;
     const { projectID } = req.body;
 
     const project = await Project.findOne({
@@ -843,7 +842,7 @@ export const leaveProject = async (req, res) => {
 // INVITE USER TO JOIN COMPANY USING INVITE LINK - COMPANY OWNER
 export const sendCompanyInvite = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { employees } = req.body;
 
     // Check if company exists for the owner
@@ -928,7 +927,7 @@ export const verifyCompanyInvite = async (req, res) => {
 // INVITE USER TO JOIN PROJECT USING INVITE LINK - PROJECT OWNER
 export const sendProjectInvite = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { email, projectID } = req.body;
 
     const project = await Project.findOne({
@@ -997,7 +996,7 @@ export const deleteAdmin = async (req, res) => {
     await leaveCompany(req, res);
 
     // Leave All Projects
-    const email = req.session.username;
+    const email = req.session.username || req.user.email;
     const projects = await Project.find({
       status: "active",
       $or: [{ owners: email }, { editors: email }, { viewers: email }],
@@ -1018,7 +1017,7 @@ export const deleteAdmin = async (req, res) => {
 // ADD FILTER TO THE PROJECT - PROJECT OWNER
 export const addFilter = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { projectID, filter } = req.body;
 
     const project = await Project.findOne({
@@ -1032,19 +1031,24 @@ export const addFilter = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    // Check if a filter with same filter.name or filter.priority exists
-    const filterExists = project.filters.find(
-      (f) => f.name === filter.name || f.priority === filter.priority
-    );
-
-    if (filterExists) {
-      return res.status(409).json({
-        message: "A filter with same name or priority already exists",
-      });
+    // Check if filter.name exist as a key in project.filters
+    if (project.filters[filter.name]) {
+      return res.status(409).json({ message: "Filter already exists" });
     }
 
-    // Add filter to existing filters array
-    project.filters.push(filter);
+    // Check if default value is present in values
+    if (!filter.values.includes(filter.default)) {
+      return res.status(400).json({ message: "Default value not in values" });
+    }
+
+    // Add filter to project
+    project.filters[filter.name] = {
+      default: filter.default,
+      values: filter.values,
+    };
+
+    project.markModified('filters');
+
     await project.save();
     res.status(200).json({ message: "Filter added successfully" });
   } catch (error) {
@@ -1055,7 +1059,7 @@ export const addFilter = async (req, res) => {
 // UPDATE A FILTER OF THE FILTERS OF A PROJECT - PROJECT OWNER
 export const updateFilter = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { projectID, filter } = req.body;
 
     const project = await Project.findOne({
@@ -1070,30 +1074,24 @@ export const updateFilter = async (req, res) => {
     }
 
     // Check if filter exists
-    const filterExists = project.filters.find((f) => f.name === filter.name);
+    const filterExists = Object.keys(project.filters).includes(filter.name);
 
     if (!filterExists) {
       return res.status(404).json({ message: "Filter not found" });
     }
 
-    // Check if no other filter with same priority exists
-    const priorityExists = project.filters.find(
-      (f) => f.priority === filter.priority && f.name !== filter.name
-    );
-
-    if (priorityExists) {
-      return res.status(409).json({
-        message: "A filter with same priority already exists",
-      });
-    }
-
     // Update filter details
-    project.filters = project.filters.map((f) =>
-      f.name === filter.name ? filter : f
-    );
+    project.filters[filter.name] = {
+      default: filter.default,
+      values: filter.values,
+    };
+
+    project.markModified('filters');
+
     await project.save();
     res.status(200).json({ message: "Filter updated successfully" });
   } catch (error) {
+    console.log(error.message)
     return res.status(500).send(error.message);
   }
 };
@@ -1101,7 +1099,7 @@ export const updateFilter = async (req, res) => {
 // DELETE A FILTER FROM THE FILTERS OF A PROJECT - PROJECT OWNER
 export const deleteFilter = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { projectID, filterName } = req.body;
 
     const project = await Project.findOne({
@@ -1134,7 +1132,7 @@ export const deleteFilter = async (req, res) => {
 // CLONE PROJECT - PROJECT OWNER
 export const cloneProject = async (req, res) => {
   try {
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
     const { projectID, name } = req.body;
 
     const project = await Project.findOne({
@@ -1208,7 +1206,7 @@ export const cloneProject = async (req, res) => {
     });
 
     await Promise.all(promises2);
-    
+
     const promises3 = masters.map(async (master) => {
       const clonedMaster = new Master({
         ...master.toObject(),

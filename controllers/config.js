@@ -8,7 +8,7 @@ import { generateID } from "../lib/helpers.js";
 export const addAppConfig = async (req, res) => {
   try {
     const { projectID, name, desc, params } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     switch (true) {
       case !projectID:
@@ -66,7 +66,7 @@ export const addAppConfig = async (req, res) => {
 export const addPlayerConfig = async (req, res) => {
   try {
     const { projectID, params, name, desc } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -120,7 +120,7 @@ export const addPlayerConfig = async (req, res) => {
 export const deleteConfig = async (req, res) => {
   try {
     const { configID } = req.query;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     if (configID.startsWith("ac")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
@@ -140,6 +140,12 @@ export const deleteConfig = async (req, res) => {
 
       appConfig.status = "inactive";
       await appConfig.save();
+
+      // Deactivate all mappings
+      await Master.updateMany(
+        { "appConfig.configID": configID },
+        { status: "inactive" }
+      );
     }
 
     if (configID.startsWith("pc")) {
@@ -163,6 +169,12 @@ export const deleteConfig = async (req, res) => {
 
       playerConfig.status = "inactive";
       await playerConfig.save();
+      
+      // Deactivate all mappings
+      await Master.updateMany(
+        { "playerConfig.configID": configID },
+        { status: "inactive" }
+      );
     }
 
     res.status(200).json({ message: "Success" });
@@ -175,7 +187,7 @@ export const deleteConfig = async (req, res) => {
 export const modifyConfig = async (req, res) => {
   try {
     const { configID, params, name, desc } = req.body;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     if (configID.startsWith("ac")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
@@ -196,7 +208,18 @@ export const modifyConfig = async (req, res) => {
       appConfig.params = params || appConfig.params;
       appConfig.name = name || appConfig.name;
       appConfig.desc = desc || appConfig.desc;
+
       await appConfig.save();
+
+      // Update name, desc, params in master docs also
+      await Master.updateMany(
+        { "appConfig.configID": configID },
+        {
+          "appConfig.name": name,
+          "appConfig.desc": desc,
+          "appConfig.params": params
+        }
+      );
     }
 
     if (configID.startsWith("pc")) {
@@ -222,6 +245,16 @@ export const modifyConfig = async (req, res) => {
       playerConfig.name = name || playerConfig.name;
       playerConfig.desc = desc || playerConfig.desc;
       await playerConfig.save();
+
+      // Update name, desc, params in master docs also
+      await Master.updateMany(
+        { "playerConfig.configID": configID },
+        {
+          "playerConfig.name": name,
+          "playerConfig.desc": desc,
+          "playerConfig.params": params,
+        }
+      );
     }
 
     return res.status(200).json({ message: "Success" });
@@ -234,7 +267,7 @@ export const modifyConfig = async (req, res) => {
 export const cloneConfig = async (req, res) => {
   try {
     const { configID, name, desc, params } = req.body;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     if (configID.startsWith("ac")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
@@ -295,7 +328,7 @@ export const cloneConfig = async (req, res) => {
 
     return res.status(200).json({ message: "Success" });
   } catch (error) {
-    console.log(error.message)
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -304,7 +337,7 @@ export const cloneConfig = async (req, res) => {
 export const getAllAppConfigs = async (req, res) => {
   try {
     const { projectID } = req.query;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
@@ -336,7 +369,7 @@ export const getAllAppConfigs = async (req, res) => {
 export const getAllPlayerConfigs = async (req, res) => {
   try {
     const { projectID } = req.query;
-    const user = req.session.username;
+    const user = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne(
@@ -368,7 +401,7 @@ export const getAllPlayerConfigs = async (req, res) => {
 export const createMapping = async (req, res) => {
   try {
     const { companyID, projectID, appConfig, playerConfig, filter } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -390,61 +423,71 @@ export const createMapping = async (req, res) => {
       configID: playerConfig.configID,
     });
 
+    // For Loop for all type of configs.
+
     switch (true) {
       case !appConfigDoc:
-        return res.status(404).json({ message: "AppConfig not found" });
+        return res.status(404).json({ message: "AppConfig not found" }); // dont return, just log
       case !playerConfigDoc:
         return res.status(404).json({ message: "PlayerConfig not found" });
     }
 
-    // const mergedFilter = {};
+    let searchFilter = {};
+    for (const key in filter) {
+      if (filter[key] === "") {
+        searchFilter[key] = project.filters[key].default;
+      } else if (filter[key] === "ALL") {
+        searchFilter[key] = project.filters[key].values;
+      } else {
+        searchFilter[key] = filter[key];
+      }
+    } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
 
-    // project.filters.map((filter) => {
-    //   mergedFilter[filter.name] = {
-    //     priority: filter.priority,
-    //     value: "",
-    //   };
-    // });
-
-    // Object.keys(filter).map((key) => {
-    //   mergedFilter[key].value = filter[key];
-    // });
-
-    let priority = 0;
-    let filterCount = 0;
-
-    project.filters.map((item) => {
-      Object.keys(filter).map((key) => {
-        if (item.name === key && filter[key] !== "ALL") {
-          priority += item.priority;
-          filterCount += 1;
+    let filterConditions = Object.entries(searchFilter).reduce(
+      (acc, [key, value]) => {
+        if (Array.isArray(value)) {
+          let newAcc = [];
+          for (let val of value) {
+            if (acc.length === 0) {
+              newAcc.push({ [key]: val });
+            } else {
+              for (let obj of acc) {
+                newAcc.push({ ...obj, [key]: val });
+              }
+            }
+          }
+          return newAcc;
+        } else {
+          if (acc.length === 0) {
+            return [{ [key]: value }];
+          } else {
+            return acc.map((obj) => ({ ...obj, [key]: value }));
+          }
         }
-      });
-    });
-
-    const filterDetails = {
-      priority,
-      filterCount,
-    };
-
-    const document = await Master.findOneAndUpdate(
-      {
-        projectID,
-        filter,
       },
-      {
-        companyID,
-        projectID,
-        appConfig,
-        playerConfig,
-        filter,
-        filterDetails,
-        status: "active",
-      },
-      { upsert: true, new: true }
-    );
+      []
+    ); 
 
-    res.status(201).json({ message: "Success", document });
+    // create or update Master
+    for (let condition of filterConditions) {
+      await Master.findOneAndUpdate(
+        {
+          projectID,
+          filter: condition,
+          status: "active",
+        },
+        {
+          appConfig,
+          playerConfig,
+          filter: condition,
+          projectID,
+          companyID,
+        },
+        { upsert: true }
+      );
+    }
+
+    res.status(200).json({ message: "Success" });
   } catch (error) {
     console.log(error.message);
     return res.status(500).send(error.message);
@@ -455,7 +498,7 @@ export const createMapping = async (req, res) => {
 export const deleteMapping = async (req, res) => {
   try {
     const { projectID, filter } = req.body;
-    const owner = req.session.username;
+    const owner = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -489,7 +532,7 @@ export const deleteMapping = async (req, res) => {
 };
 
 // GET MAPPING FROM FILTER PARAMS
-export const getMapping = async (req, res) => {
+export const getActiveMapping = async (req, res) => {
   try {
     const { projectID, filter } = req.body;
 
@@ -500,36 +543,111 @@ export const getMapping = async (req, res) => {
         return res.status(400).json({ message: "Filter is required" });
     }
 
-    const masters = await Master.findOne({
-      projectID,
-      status: "active",
-      filter,
-    }, {
-      _id: 0,
-      __v: 0,
-      status: 0,
-      createdAt: 0,
-      updatedAt: 0,
-    });
+    const master = await Master.findOne(
+      {
+        projectID,
+        status: "active",
+        filter,
+      },
+      {
+        _id: 0,
+        __v: 0,
+        status: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      }
+    );
 
-    if (!masters) {
-      return res.status(200).json({ code: "NO_MAPPING" ,message: "Mapping not found",
+    if (!master) {
+      return res.status(200).json({
+        code: "NO_MAPPING",
+        message: "Mapping not found",
         mappings: {
           appConfig: {},
           playerConfig: {},
           filter: {},
-        }
-       });
+        },
+      });
     }
 
-    // const sortedMasters = masters.sort((a, b) => {
-    //   if (a.filterDetails.filterCount === b.filterDetails.filterCount) {
-    //     return b.filterDetails.priority - a.filterDetails.priority;
-    //   }
-    //   return a.filterDetails.filterCount - b.filterDetails.filterCount;
-    // });
+    res
+      .status(200)
+      .json({ code: "FOUND", message: "Success", mappings: master });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).send(error.message);
+  }
+};
 
-    // const finalMaster = sortedMasters[0];
+// GET ALL MAPPINGS - PROJECT OWNER / EDITOR
+export const getAllMappings = async (req, res) => {
+  try {
+    const { projectID } = req.body;
+    const owner = req.session.username || req.user.email;
+
+    console.log(projectID, owner);
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne({ status: "active", projectID });
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(owner) && !project.editors.includes(owner):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const result = await Master.find(
+      { status: "active", projectID },
+      { _id: 0, __v: 0 }
+    );
+
+    res
+      .status(200)
+      .json({ code: "FOUND", message: "Success", mappings: result });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// GET MAPPING FROM FILTER PARAMS
+export const getMappingScale = async (req, res) => {
+  try {
+    const { projectID, filter } = req.body;
+
+    switch (true) {
+      case !projectID:
+        return res.status(400).json({ message: "ProjectID is required" });
+      case !filter:
+        return res.status(400).json({ message: "Filter is required" });
+    }
+
+    const masters = await Master.findOne(
+      {
+        projectID,
+        status: "active",
+        filter,
+      },
+      {
+        _id: 0,
+        __v: 0,
+        status: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      }
+    );
+
+    if (!masters) {
+      return res.status(200).json({
+        code: "NO_MAPPING",
+        message: "Mapping not found",
+        mappings: {
+          appConfig: {},
+          playerConfig: {},
+          filter: {},
+        },
+      });
+    }
 
     const appConfig = masters.appConfig?.params || {};
     const playerConfig = masters.playerConfig?.params || {};
@@ -539,12 +657,14 @@ export const getMapping = async (req, res) => {
       playerConfig,
       filter: masters.filter,
       projectID: masters.projectID,
-      companyID: masters.companyID
+      companyID: masters.companyID,
     };
 
-    res.status(200).json({ code: "FOUND", message: "Success", mappings: masters });
+    res
+      .status(200)
+      .json({ code: "FOUND", message: "Success", mappings: resObj });
   } catch (error) {
-    console.log(error.message)
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };

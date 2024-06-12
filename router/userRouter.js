@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { getMapping } from "../controllers/config.js";
 const router = Router();
 
 router.get("/dummy", (req, res) => {

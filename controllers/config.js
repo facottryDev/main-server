@@ -668,3 +668,41 @@ export const getMappingScale = async (req, res) => {
     return res.status(500).send(error.message);
   }
 };
+
+export const getAllConfigs = async (req, res) => {
+  try {
+    const { projectID } = req.query;
+    const user = req.session.username || req.user.email;
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne(
+      { status: "active", projectID },
+      { owners: 1, editors: 1, viewers: 1, _id: 0 }
+    );
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(user) &&
+        !project.editors.includes(user) &&
+        !project.viewers.includes(user):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const appConfigs = await AppConfig.find(
+      { status: "active", projectID },
+      { _id: 0, __v: 0 }
+    );
+
+    const playerConfigs = await PlayerConfig.find(
+      { status: "active", projectID },
+      { _id: 0, __v: 0 }
+    );
+
+    const customConfigs = project.customConfig || {};
+
+    res.status(200).json({ appConfigs, playerConfigs, customConfigs });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};

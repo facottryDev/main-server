@@ -7,7 +7,8 @@ import helmet from "helmet";
 import authRouter from "./router/authRouter.js";
 import adminRouter from "./router/adminRouter.js";
 import configRouter from "./router/configRouter.js";
-import userRouter from "./router/userRouter.js";
+import scaleRouter from "./router/scaleRouter.js";
+import analyticsRouter from "./router/analyticsRouter.js";
 import { createClient } from "redis";
 import RedisStore from "connect-redis";
 import session from "express-session";
@@ -144,4 +145,5 @@ app.get("/", (req, res) => {
 app.use("/auth", authRouter);
 app.use("/admin", adminRouter);
 app.use("/config", configRouter);
-app.use("/user", userRouter);
+app.use("/scale", scaleRouter);
+app.use("/analytics", analyticsRouter);

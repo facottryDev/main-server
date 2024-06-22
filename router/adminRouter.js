@@ -32,7 +32,6 @@ import { deleteConfigType } from "../controllers/config.js";
 const router = Router();
 
 router.use(isAuth);
-
 router.get("/get-admin", getAdmin);
 
 // FOR COMPANY OWNERS

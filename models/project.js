@@ -36,6 +36,11 @@ const projectSchema = new mongoose.Schema(
       default: {}
     },
 
+    configTypes: {
+      type: Array,
+      default: ['app', 'player']
+    },
+
     joinRequests: [
       {
         type: String,
@@ -80,5 +85,5 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.project ||
+export default mongoose.model.projects ||
 mongoose.model("project", projectSchema);

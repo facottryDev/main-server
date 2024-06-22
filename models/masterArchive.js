@@ -40,12 +40,6 @@ const masterArchiveSchema = new mongoose.Schema(
       params: {
         type: Object,
       },
-
-      demo_url: {
-        type: String,
-        default:
-          "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
-      },
     },
     
     playerConfig: {
@@ -65,14 +59,13 @@ const masterArchiveSchema = new mongoose.Schema(
       params: {
         type: Object,
       },
-  
-      demo_url: {
-        type: String,
-        default: "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
-      },
     },
+
+    customConfigs: {
+      type: Object,
+    }
   },
   { timestamps: true }
 );
 
-export default mongoose.model.masterarchives || mongoose.model("masterarchive", masterArchiveSchema);
+export default mongoose.model.mappingarchives || mongoose.model("mappingarchive", masterArchiveSchema);

@@ -36,6 +36,11 @@ const projectArchivesSchema = new mongoose.Schema(
       default: {}
     },
 
+    configTypes: {
+      type: Array,
+      default: ['app', 'player']
+    },
+
     joinRequests: [
       {
         type: String,

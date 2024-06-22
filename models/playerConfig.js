@@ -17,6 +17,11 @@ const playerConfigSchema = new mongoose.Schema(
       type: String
     },
 
+    type: {
+      type: String,
+      default: "player",
+    },
+
     status: {
       type: String,
       default: "active",
@@ -40,5 +45,5 @@ const playerConfigSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.playerconfig ||
+export default mongoose.model.playerconfigs ||
 mongoose.model("playerconfig", playerConfigSchema);

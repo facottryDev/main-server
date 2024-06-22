@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const appConfigSchema = new mongoose.Schema(
+const customConfigSchema = new mongoose.Schema(
   {
     configID: {
       type: String,
@@ -13,15 +13,15 @@ const appConfigSchema = new mongoose.Schema(
       required: true,
     },
 
-    type: {
-      type: String,
-      default: "app",
-    },
-
     status: {
       type: String,
       default: "active",
       enum: ["active", "inactive"],
+    },
+
+    type: {
+        type: String,
+        required: true,
     },
 
     desc: {
@@ -45,5 +45,5 @@ const appConfigSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.appconfigs ||
-  mongoose.model("appconfig", appConfigSchema);
+export default mongoose.model.customconfigs ||
+  mongoose.model("customconfig", customConfigSchema);

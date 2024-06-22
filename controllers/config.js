@@ -1,6 +1,7 @@
 import Project from "../models/project.js";
 import AppConfig from "../models/appConfig.js";
 import PlayerConfig from "../models/playerConfig.js";
+import CustomConfig from "../models/customConfig.js";
 import Master from "../models/master.js";
 import { generateID } from "../lib/helpers.js";
 
@@ -169,7 +170,7 @@ export const deleteConfig = async (req, res) => {
 
       playerConfig.status = "inactive";
       await playerConfig.save();
-      
+
       // Deactivate all mappings
       await Master.updateMany(
         { "playerConfig.configID": configID },
@@ -217,7 +218,7 @@ export const modifyConfig = async (req, res) => {
         {
           "appConfig.name": name,
           "appConfig.desc": desc,
-          "appConfig.params": params
+          "appConfig.params": params,
         }
       );
     }
@@ -400,7 +401,7 @@ export const getAllPlayerConfigs = async (req, res) => {
 // MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
 export const createMapping = async (req, res) => {
   try {
-    const { companyID, projectID, appConfig, playerConfig, filter } = req.body;
+    const { companyID, projectID, configs, filter } = req.body;
     const owner = req.session.username || req.user.email;
 
     // Check if Project exists & Authorized
@@ -413,25 +414,50 @@ export const createMapping = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
-    // Check if AppConfig & PlayerConfig exists
-    const appConfigDoc = await AppConfig.findOne({
+    const appConfig = await AppConfig.findOne({
       status: "active",
-      configID: appConfig.configID,
-    });
-    const playerConfigDoc = await PlayerConfig.findOne({
-      status: "active",
-      configID: playerConfig.configID,
-    });
+      configID: configs.app.configID,
+    }, { _id: 0, configID: 1, name: 1, desc: 1, params: 1 });
 
-    // For Loop for all type of configs.
-
-    switch (true) {
-      case !appConfigDoc:
-        return res.status(404).json({ message: "AppConfig not found" }); // dont return, just log
-      case !playerConfigDoc:
-        return res.status(404).json({ message: "PlayerConfig not found" });
+    if(!appConfig) {
+      return res.status(404).json({ message: "AppConfig not found" });
     }
 
+    const playerConfig = await PlayerConfig.findOne({
+      status: "active",
+      configID: configs.player.configID,
+    }, { _id: 0, configID: 1, name: 1, desc: 1, params: 1 });
+
+    if(!playerConfig) {
+      return res.status(404).json({ message: "PlayerConfig not found" });
+    }
+
+    const custom = Object.entries(configs).reduce((acc, [key, value]) => {
+      if (key !== "app" && key !== "player") {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+    const customConfig = {};
+
+    // check if all configs are valid
+    if (Object.keys(custom).length > 0) {
+      for (let [key, value] of Object.entries(custom)) {
+        const config = await CustomConfig.findOne({
+          status: "active",
+          configID: value.configID,
+        }, { _id: 0, configID: 1, name: 1, desc: 1, params: 1 });
+
+        if (!config) {
+          return res.status(404).json({ message: `${key} Config not found` });
+        }
+
+        customConfig[key] = config;
+      }
+    }
+
+    // For Loop for all type of configs.
     let searchFilter = {};
     for (const key in filter) {
       if (filter[key] === "") {
@@ -466,7 +492,7 @@ export const createMapping = async (req, res) => {
         }
       },
       []
-    ); 
+    );
 
     // create or update Master
     for (let condition of filterConditions) {
@@ -479,6 +505,7 @@ export const createMapping = async (req, res) => {
         {
           appConfig,
           playerConfig,
+          customConfig,
           filter: condition,
           projectID,
           companyID,
@@ -677,7 +704,7 @@ export const getAllConfigs = async (req, res) => {
     // Check if Project exists & Authorized
     const project = await Project.findOne(
       { status: "active", projectID },
-      { owners: 1, editors: 1, viewers: 1, _id: 0 }
+      { _id: 0 }
     );
 
     switch (true) {
@@ -699,10 +726,136 @@ export const getAllConfigs = async (req, res) => {
       { _id: 0, __v: 0 }
     );
 
-    const customConfigs = project.customConfig || {};
+    const customConfigs = await CustomConfig.find(
+      { status: "active", projectID },
+      { _id: 0, __v: 0 }
+    );
 
-    res.status(200).json({ appConfigs, playerConfigs, customConfigs });
+    res
+      .status(200)
+      .json({
+        appConfigs,
+        playerConfigs,
+        customConfigs,
+        types: project.configTypes,
+      });
   } catch (error) {
     return res.status(500).send(error.message);
+  }
+};
+
+export const addConfig = async (req, res) => {
+  try {
+    const { projectID, name, desc, params, type } = req.body;
+    const owner = req.session.username || req.user.email;
+
+    switch (true) {
+      case !projectID:
+        return res.status(400).json({ message: "ProjectID is required" });
+      case !name:
+        return res.status(400).json({ message: "Name is required" });
+      case !params || Object.keys(params).length === 0:
+        return res.status(400).json({ message: "Params are required" });
+      case !type:
+        return res.status(400).json({ message: "Type is required" });
+    }
+
+    // Check if Project exists & user is authorized
+    const project = await Project.findOne({ status: "active", projectID });
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(owner) && !project.editors.includes(owner):
+        return res.status(403).json({ message: "Unauthorized" });
+      case !project.configTypes.includes(type):
+        return res.status(400).json({ message: "Invalid type" });
+    }
+
+    if (type === "app") {
+      const appConfig = await AppConfig.findOne({
+        status: "active",
+        projectID,
+        $or: [{ name }, { params }],
+      });
+
+      if (appConfig) {
+        return res.status(409).json({
+          message: "a config already exists with same name or params",
+          name: appConfig.name,
+          configID: appConfig.configID,
+        });
+      }
+
+      const newAppConfig = new AppConfig({
+        configID: generateID(`app_${project.name}`),
+        projectID,
+        companyID: project.companyID,
+        name,
+        type,
+        desc,
+        params,
+      });
+
+      await newAppConfig.save();
+    } else if (type === "player") {
+      const playerConfig = await PlayerConfig.findOne({
+        status: "active",
+        projectID,
+        $or: [{ name }, { params }],
+      });
+
+      if (playerConfig) {
+        return res.status(409).json({
+          message: "a config already exists with same name or params",
+          name: playerConfig.name,
+          configID: playerConfig.configID,
+        });
+      }
+
+      const newPlayerConfig = new PlayerConfig({
+        configID: generateID(`player_${project.name}`),
+        projectID,
+        companyID: project.companyID,
+        name,
+        type,
+        desc,
+        params,
+      });
+
+      await newPlayerConfig.save();
+    } else {
+      const customConfig = await CustomConfig.findOne({
+        status: "active",
+        projectID,
+        type,
+        $or: [{ name }, { params }],
+      });
+
+      if (customConfig) {
+        return res.status(409).json({
+          message: "a config already exists with same name or params",
+          configId: customConfig.configID,
+          name: customConfig.name,
+          type: customConfig.type
+        });
+      }
+
+      const newCustomConfig = new CustomConfig({
+        configID: generateID(`${type}_${project.name}`),
+        projectID,
+        companyID: project.companyID,
+        name,
+        type,
+        desc,
+        params,
+      });
+
+      await newCustomConfig.save();
+    }
+
+    res.status(201).json({ message: "Success" });
+  } catch (error) {
+    return res.status(500).json(error);
   }
 };

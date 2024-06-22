@@ -57,5 +57,5 @@ const companySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.company ||
+export default mongoose.model.companies ||
 mongoose.model("company", companySchema);

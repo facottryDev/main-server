@@ -51,6 +51,7 @@ export const getAdmin = async (req, res) => {
       projectID: project.projectID,
       name: project.name,
       type: project.type,
+      configTypes: project.configTypes,
       role: project.owners.includes(email)
         ? "owner"
         : project.editors.includes(email)
@@ -1217,6 +1218,40 @@ export const cloneProject = async (req, res) => {
 
     await Promise.all(promises3);
     res.status(200).json({ message: "Project cloned successfully" });
+  } catch (error) {
+    return res.status(500).send(error.message);
+  }
+};
+
+// ADD NEW CONFIG TYPE - PROJECT OWNER
+export const addConfigType = async (req, res) => {
+  try {
+    const owner = req.session.username || req.user.email;
+    const { projectID, configType } = req.body;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [owner] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if type already exists
+    const typeExists = project.configTypes.includes(configType);
+    
+    if (typeExists) {
+      return res.status(409).json({ message: "Type already exists" });
+    }
+
+    // Add type to project
+    project.configTypes.push(configType);
+    await project.save();
+
+    res.status(200).json({ message: "Config type added successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
   }

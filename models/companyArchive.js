@@ -57,5 +57,5 @@ const companyArchivesSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.companyarchives ||
-mongoose.model("companyarchive", companyArchivesSchema);
+export default mongoose.model.archivecompanies ||
+mongoose.model("archivecompany", companyArchivesSchema);

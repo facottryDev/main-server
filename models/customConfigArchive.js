@@ -45,5 +45,5 @@ const customConfigArchiveSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.customconfigarchives ||
-  mongoose.model("customconfigarchive", customConfigArchiveSchema);
+export default mongoose.model.archivecustomconfigs ||
+  mongoose.model("archivecustomconfig", customConfigArchiveSchema);

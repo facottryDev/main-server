@@ -45,5 +45,5 @@ const playerConfigArchiveSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.playerconfigarchives ||
-mongoose.model("playerconfigarchive", playerConfigArchiveSchema);
+export default mongoose.model.archiveplayerconfigs ||
+mongoose.model("archiveplayerconfig", playerConfigArchiveSchema);

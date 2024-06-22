@@ -85,5 +85,5 @@ const projectArchivesSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.projectarchives ||
-mongoose.model("projectarchive", projectArchivesSchema);
+export default mongoose.model.archiveprojects ||
+mongoose.model("archiveproject", projectArchivesSchema);

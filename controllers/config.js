@@ -976,3 +976,47 @@ export const addConfig = async (req, res) => {
     return res.status(500).json(error);
   }
 };
+
+export const deleteConfigType = async (req, res) => {
+  try {
+    const { projectID, type } = req.query;
+    const user = req.session.username || req.user.email;
+
+    if (!projectID) {
+      return res.status(400).json({ message: "ProjectID is required" });
+    }
+
+    const project = await Project.findOne({ status: "active", projectID });
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    if (!project.owners.includes(user) && !project.editors.includes(user)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    if (!project.configTypes.includes(type)) {
+      return res.status(400).json({ message: "Invalid type" });
+    }
+
+    await Project.updateOne({ projectID }, { $pull: { configTypes: type } });
+
+    // delete all configs of this type (except app & player configs)
+    await CustomConfig.updateMany({ projectID, type }, { status: "inactive" });
+
+    // delete all master docs with where customConfig has a key of type
+    await Master.updateMany(
+      {
+        projectID,
+        status: "active",
+        [`customConfig.${type}`]: { $exists: true },
+      },
+      { status: "inactive" }
+    );
+
+    res.status(200).json({ message: "Success" });
+  } catch (error) {
+    return res.status(500).json(error);
+  }
+};

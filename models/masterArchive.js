@@ -68,4 +68,4 @@ const masterArchiveSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.mappingarchives || mongoose.model("mappingarchive", masterArchiveSchema);
+export default mongoose.model.archivemappings || mongoose.model("archivemapping", masterArchiveSchema);

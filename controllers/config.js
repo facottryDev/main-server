@@ -123,7 +123,7 @@ export const deleteConfig = async (req, res) => {
     const { configID } = req.query;
     const user = req.session.username || req.user.email;
 
-    if (configID.startsWith("ac")) {
+    if (configID.startsWith("app")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
 
       if (!appConfig) {
@@ -147,9 +147,7 @@ export const deleteConfig = async (req, res) => {
         { "appConfig.configID": configID },
         { status: "inactive" }
       );
-    }
-
-    if (configID.startsWith("pc")) {
+    } else if (configID.startsWith("player")) {
       const playerConfig = await PlayerConfig.findOne({
         status: "active",
         configID,
@@ -176,6 +174,27 @@ export const deleteConfig = async (req, res) => {
         { "playerConfig.configID": configID },
         { status: "inactive" }
       );
+    } else {
+      const customConfig = await CustomConfig.findOne({
+        status: "active",
+        configID,
+      });
+
+      if (!customConfig) {
+        return res.status(404).json({ message: "CustomConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: customConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      customConfig.status = "inactive";
+      await customConfig.save();
     }
 
     res.status(200).json({ message: "Success" });
@@ -190,7 +209,7 @@ export const modifyConfig = async (req, res) => {
     const { configID, params, name, desc } = req.body;
     const user = req.session.username || req.user.email;
 
-    if (configID.startsWith("ac")) {
+    if (configID.startsWith("app")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
 
       if (!appConfig) {
@@ -221,9 +240,7 @@ export const modifyConfig = async (req, res) => {
           "appConfig.params": params,
         }
       );
-    }
-
-    if (configID.startsWith("pc")) {
+    } else if (configID.startsWith("player")) {
       const playerConfig = await PlayerConfig.findOne({
         status: "active",
         configID,
@@ -256,6 +273,29 @@ export const modifyConfig = async (req, res) => {
           "playerConfig.params": params,
         }
       );
+    } else {
+      const customConfig = await CustomConfig.findOne({
+        status: "active",
+        configID,
+      });
+
+      if (!customConfig) {
+        return res.status(404).json({ message: "CustomConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: customConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      customConfig.params = params || customConfig.params;
+      customConfig.name = name || customConfig.name;
+      customConfig.desc = desc || customConfig.desc;
+      await customConfig.save();
     }
 
     return res.status(200).json({ message: "Success" });
@@ -270,7 +310,7 @@ export const cloneConfig = async (req, res) => {
     const { configID, name, desc, params } = req.body;
     const user = req.session.username || req.user.email;
 
-    if (configID.startsWith("ac")) {
+    if (configID.startsWith("app")) {
       const appConfig = await AppConfig.findOne({ status: "active", configID });
 
       if (!appConfig) {
@@ -287,7 +327,7 @@ export const cloneConfig = async (req, res) => {
       }
 
       const newAppConfig = new AppConfig({
-        configID: generateID(`AC_${project.name}`),
+        configID: generateID(`app_${project.name}`),
         projectID: appConfig.projectID,
         companyID: appConfig.companyID,
         desc: desc || appConfig.desc,
@@ -295,9 +335,7 @@ export const cloneConfig = async (req, res) => {
         params: params || appConfig.params,
       });
       await newAppConfig.save();
-    }
-
-    if (configID.startsWith("pc")) {
+    } else if (configID.startsWith("player")) {
       const playerConfig = await PlayerConfig.findOne({
         status: "active",
         configID,
@@ -317,7 +355,7 @@ export const cloneConfig = async (req, res) => {
       }
 
       const newPlayerConfig = new PlayerConfig({
-        configID: generateID(`PC_${project.name}`),
+        configID: generateID(`player_${project.name}`),
         projectID: playerConfig.projectID,
         companyID: playerConfig.companyID,
         desc: desc || playerConfig.desc,
@@ -325,6 +363,34 @@ export const cloneConfig = async (req, res) => {
         params: params || playerConfig.params,
       });
       await newPlayerConfig.save();
+    } else {
+      const customConfig = await CustomConfig.findOne({
+        status: "active",
+        configID,
+      });
+
+      if (!customConfig) {
+        return res.status(404).json({ message: "CustomConfig not found" });
+      }
+
+      const project = await Project.findOne(
+        { projectID: customConfig.projectID },
+        { owners: 1, editors: 1, _id: 0 }
+      );
+
+      if (!project.owners.includes(user) && !project.editors.includes(user)) {
+        return res.status(403).json({ message: "Unauthorized" });
+      }
+
+      const newCustomConfig = new CustomConfig({
+        configID: generateID(`${customConfig.type}_${project.name}`),
+        projectID: customConfig.projectID,
+        companyID: customConfig.companyID,
+        desc: desc || customConfig.desc,
+        name: name || customConfig.name,
+        params: params || customConfig.params,
+      });
+      await newCustomConfig.save();
     }
 
     return res.status(200).json({ message: "Success" });
@@ -414,21 +480,27 @@ export const createMapping = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
-    const appConfig = await AppConfig.findOne({
-      status: "active",
-      configID: configs.app.configID,
-    }, { _id: 0, configID: 1, name: 1, desc: 1, params: 1 });
+    const appConfig = await AppConfig.findOne(
+      {
+        status: "active",
+        configID: configs.app.configID,
+      },
+      { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
+    );
 
-    if(!appConfig) {
+    if (!appConfig) {
       return res.status(404).json({ message: "AppConfig not found" });
     }
 
-    const playerConfig = await PlayerConfig.findOne({
-      status: "active",
-      configID: configs.player.configID,
-    }, { _id: 0, configID: 1, name: 1, desc: 1, params: 1 });
+    const playerConfig = await PlayerConfig.findOne(
+      {
+        status: "active",
+        configID: configs.player.configID,
+      },
+      { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
+    );
 
-    if(!playerConfig) {
+    if (!playerConfig) {
       return res.status(404).json({ message: "PlayerConfig not found" });
     }
 
@@ -444,10 +516,13 @@ export const createMapping = async (req, res) => {
     // check if all configs are valid
     if (Object.keys(custom).length > 0) {
       for (let [key, value] of Object.entries(custom)) {
-        const config = await CustomConfig.findOne({
-          status: "active",
-          configID: value.configID,
-        }, { _id: 0, configID: 1, name: 1, desc: 1, params: 1 });
+        const config = await CustomConfig.findOne(
+          {
+            status: "active",
+            configID: value.configID,
+          },
+          { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
+        );
 
         if (!config) {
           return res.status(404).json({ message: `${key} Config not found` });
@@ -609,10 +684,8 @@ export const getActiveMapping = async (req, res) => {
 // GET ALL MAPPINGS - PROJECT OWNER / EDITOR
 export const getAllMappings = async (req, res) => {
   try {
-    const { projectID } = req.body;
+    const { projectID, filter } = req.body;
     const owner = req.session.username || req.user.email;
-
-    console.log(projectID, owner);
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
@@ -624,9 +697,55 @@ export const getAllMappings = async (req, res) => {
         return res.status(403).json({ message: "Unauthorized" });
     }
 
+    let searchFilter = {};
+    for (const key in filter) {
+      if (filter[key] === "") {
+        searchFilter[key] = project.filters[key].default;
+      } else if (filter[key] === "ALL") {
+        searchFilter[key] = project.filters[key].values;
+      } else {
+        searchFilter[key] = filter[key];
+      }
+    } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
+
+    let filterConditions = Object.entries(searchFilter).reduce(
+      (acc, [key, value]) => {
+        if (Array.isArray(value)) {
+          let newAcc = [];
+          for (let val of value) {
+            if (acc.length === 0) {
+              newAcc.push({ [key]: val });
+            } else {
+              for (let obj of acc) {
+                newAcc.push({ ...obj, [key]: val });
+              }
+            }
+          }
+          return newAcc;
+        } else {
+          if (acc.length === 0) {
+            return [{ [key]: value }];
+          } else {
+            return acc.map((obj) => ({ ...obj, [key]: value }));
+          }
+        }
+      },
+      []
+    );
+
     const result = await Master.find(
-      { status: "active", projectID },
-      { _id: 0, __v: 0 }
+      {
+        projectID,
+        status: "active",
+        filter: { $in: filterConditions },
+      },
+      {
+        _id: 0,
+        __v: 0,
+        status: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      }
     );
 
     res
@@ -731,14 +850,12 @@ export const getAllConfigs = async (req, res) => {
       { _id: 0, __v: 0 }
     );
 
-    res
-      .status(200)
-      .json({
-        appConfigs,
-        playerConfigs,
-        customConfigs,
-        types: project.configTypes,
-      });
+    res.status(200).json({
+      appConfigs,
+      playerConfigs,
+      customConfigs,
+      types: project.configTypes,
+    });
   } catch (error) {
     return res.status(500).send(error.message);
   }
@@ -837,7 +954,7 @@ export const addConfig = async (req, res) => {
           message: "a config already exists with same name or params",
           configId: customConfig.configID,
           name: customConfig.name,
-          type: customConfig.type
+          type: customConfig.type,
         });
       }
 

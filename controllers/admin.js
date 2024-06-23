@@ -1,8 +1,8 @@
 import { generateID, sendMail } from "../lib/helpers.js";
-import Company from "../models/company.js";
-import Project from "../models/project.js";
-import AppConfig from "../models/appConfig.js";
-import PlayerConfig from "../models/playerConfig.js";
+import Company from "../models/admin/company.js";
+import Project from "../models/admin/project.js";
+import AppConfig from "../models/configs/appConfig.js";
+import PlayerConfig from "../models/configs/playerConfig.js";
 
 // GET ADMIN INFO
 export const getAdmin = async (req, res) => {

@@ -1,8 +1,8 @@
-import Project from "../models/project.js";
-import AppConfig from "../models/appConfig.js";
-import PlayerConfig from "../models/playerConfig.js";
-import CustomConfig from "../models/customConfig.js";
-import Master from "../models/master.js";
+import Project from "../models/admin/project.js";
+import AppConfig from "../models/configs/appConfig.js";
+import PlayerConfig from "../models/configs/playerConfig.js";
+import CustomConfig from "../models/configs/customConfig.js";
+import Master from "../models/configs/master.js";
 import { generateID } from "../lib/helpers.js";
 
 // CREATE NEW APP CONFIG - PROJECT OWNER / EDITOR

@@ -1,4 +1,4 @@
-import users from "../models/user.js";
+import users from "../models/auth/user.js";
 import {
   sendMail,
   removeExpiredUserSessions,

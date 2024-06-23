@@ -14,7 +14,7 @@ import RedisStore from "connect-redis";
 import session from "express-session";
 import passport from "passport";
 import GoogleStrategy from "passport-google-oauth2";
-import User from "./models/user.js";
+import User from "./models/auth/user.js";
 import { startCronJobs } from "./lib/cron.js";
 
 // Const declarations

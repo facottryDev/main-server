@@ -2,7 +2,7 @@ import Project from "../models/admin/project.js";
 import AppConfig from "../models/configs/appConfig.js";
 import PlayerConfig from "../models/configs/playerConfig.js";
 import CustomConfig from "../models/configs/customConfig.js";
-import Master from "../models/configs/master.js";
+import Master from "../models/scale/master.js";
 import { generateID } from "../lib/helpers.js";
 
 // CREATE NEW APP CONFIG - PROJECT OWNER / EDITOR
@@ -464,357 +464,6 @@ export const getAllPlayerConfigs = async (req, res) => {
   }
 };
 
-// MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
-export const createMapping = async (req, res) => {
-  try {
-    const { companyID, projectID, configs, filter } = req.body;
-    const owner = req.session.username || req.user.email;
-
-    // Check if Project exists & Authorized
-    const project = await Project.findOne({ status: "active", projectID });
-
-    switch (true) {
-      case !project:
-        return res.status(404).json({ message: "Project not found" });
-      case !project.owners.includes(owner) && !project.editors.includes(owner):
-        return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const appConfig = await AppConfig.findOne(
-      {
-        status: "active",
-        configID: configs.app.configID,
-      },
-      { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
-    );
-
-    if (!appConfig) {
-      return res.status(404).json({ message: "AppConfig not found" });
-    }
-
-    const playerConfig = await PlayerConfig.findOne(
-      {
-        status: "active",
-        configID: configs.player.configID,
-      },
-      { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
-    );
-
-    if (!playerConfig) {
-      return res.status(404).json({ message: "PlayerConfig not found" });
-    }
-
-    const custom = Object.entries(configs).reduce((acc, [key, value]) => {
-      if (key !== "app" && key !== "player") {
-        acc[key] = value;
-      }
-      return acc;
-    }, {});
-
-    const customConfig = {};
-
-    // check if all configs are valid
-    if (Object.keys(custom).length > 0) {
-      for (let [key, value] of Object.entries(custom)) {
-        const config = await CustomConfig.findOne(
-          {
-            status: "active",
-            configID: value.configID,
-          },
-          { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
-        );
-
-        if (!config) {
-          return res.status(404).json({ message: `${key} Config not found` });
-        }
-
-        customConfig[key] = config;
-      }
-    }
-
-    // For Loop for all type of configs.
-    let searchFilter = {};
-    for (const key in filter) {
-      if (filter[key] === "") {
-        searchFilter[key] = project.filters[key].default;
-      } else if (filter[key] === "ALL") {
-        searchFilter[key] = project.filters[key].values;
-      } else {
-        searchFilter[key] = filter[key];
-      }
-    } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
-
-    let filterConditions = Object.entries(searchFilter).reduce(
-      (acc, [key, value]) => {
-        if (Array.isArray(value)) {
-          let newAcc = [];
-          for (let val of value) {
-            if (acc.length === 0) {
-              newAcc.push({ [key]: val });
-            } else {
-              for (let obj of acc) {
-                newAcc.push({ ...obj, [key]: val });
-              }
-            }
-          }
-          return newAcc;
-        } else {
-          if (acc.length === 0) {
-            return [{ [key]: value }];
-          } else {
-            return acc.map((obj) => ({ ...obj, [key]: value }));
-          }
-        }
-      },
-      []
-    );
-
-    // create or update Master
-    for (let condition of filterConditions) {
-      await Master.findOneAndUpdate(
-        {
-          projectID,
-          filter: condition,
-          status: "active",
-        },
-        {
-          appConfig,
-          playerConfig,
-          customConfig,
-          filter: condition,
-          projectID,
-          companyID,
-        },
-        { upsert: true }
-      );
-    }
-
-    res.status(200).json({ message: "Success" });
-  } catch (error) {
-    console.log(error.message);
-    return res.status(500).send(error.message);
-  }
-};
-
-// DELETE MAPPING FROM MASTER - PROJECT OWNER / EDITOR
-export const deleteMapping = async (req, res) => {
-  try {
-    const { projectID, filter } = req.body;
-    const owner = req.session.username || req.user.email;
-
-    // Check if Project exists & Authorized
-    const project = await Project.findOne({ status: "active", projectID });
-
-    switch (true) {
-      case !project:
-        return res.status(404).json({ message: "Project not found" });
-      case !project.owners.includes(owner) && !project.editors.includes(owner):
-        return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    const masterDoc = await Master.findOneAndUpdate(
-      {
-        projectID,
-        filter,
-        status: "active",
-      },
-      {
-        status: "inactive",
-      }
-    );
-
-    if (!masterDoc) {
-      return res.status(404).json({ message: "Mapping not found" });
-    }
-
-    res.status(200).json({ message: "Success" });
-  } catch (error) {
-    return res.status(500).send(error);
-  }
-};
-
-// GET MAPPING FROM FILTER PARAMS
-export const getActiveMapping = async (req, res) => {
-  try {
-    const { projectID, filter } = req.body;
-
-    switch (true) {
-      case !projectID:
-        return res.status(400).json({ message: "ProjectID is required" });
-      case !filter:
-        return res.status(400).json({ message: "Filter is required" });
-    }
-
-    const master = await Master.findOne(
-      {
-        projectID,
-        status: "active",
-        filter,
-      },
-      {
-        _id: 0,
-        __v: 0,
-        status: 0,
-        createdAt: 0,
-        updatedAt: 0,
-      }
-    );
-
-    if (!master) {
-      return res.status(200).json({
-        code: "NO_MAPPING",
-        message: "Mapping not found",
-        mappings: {
-          appConfig: {},
-          playerConfig: {},
-          filter: {},
-        },
-      });
-    }
-
-    res
-      .status(200)
-      .json({ code: "FOUND", message: "Success", mappings: master });
-  } catch (error) {
-    console.log(error.message);
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET ALL MAPPINGS - PROJECT OWNER / EDITOR
-export const getAllMappings = async (req, res) => {
-  try {
-    const { projectID, filter } = req.body;
-    const owner = req.session.username || req.user.email;
-
-    // Check if Project exists & Authorized
-    const project = await Project.findOne({ status: "active", projectID });
-
-    switch (true) {
-      case !project:
-        return res.status(404).json({ message: "Project not found" });
-      case !project.owners.includes(owner) && !project.editors.includes(owner):
-        return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    let searchFilter = {};
-    for (const key in filter) {
-      if (filter[key] === "") {
-        searchFilter[key] = project.filters[key].default;
-      } else if (filter[key] === "ALL") {
-        searchFilter[key] = project.filters[key].values;
-      } else {
-        searchFilter[key] = filter[key];
-      }
-    } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
-
-    let filterConditions = Object.entries(searchFilter).reduce(
-      (acc, [key, value]) => {
-        if (Array.isArray(value)) {
-          let newAcc = [];
-          for (let val of value) {
-            if (acc.length === 0) {
-              newAcc.push({ [key]: val });
-            } else {
-              for (let obj of acc) {
-                newAcc.push({ ...obj, [key]: val });
-              }
-            }
-          }
-          return newAcc;
-        } else {
-          if (acc.length === 0) {
-            return [{ [key]: value }];
-          } else {
-            return acc.map((obj) => ({ ...obj, [key]: value }));
-          }
-        }
-      },
-      []
-    );
-
-    const result = await Master.find(
-      {
-        projectID,
-        status: "active",
-        filter: { $in: filterConditions },
-      },
-      {
-        _id: 0,
-        __v: 0,
-        status: 0,
-        createdAt: 0,
-        updatedAt: 0,
-      }
-    );
-
-    res
-      .status(200)
-      .json({ code: "FOUND", message: "Success", mappings: result });
-  } catch (error) {
-    return res.status(500).send(error.message);
-  }
-};
-
-// GET MAPPING FROM FILTER PARAMS
-export const getMappingScale = async (req, res) => {
-  try {
-    const { projectID, filter } = req.body;
-
-    switch (true) {
-      case !projectID:
-        return res.status(400).json({ message: "ProjectID is required" });
-      case !filter:
-        return res.status(400).json({ message: "Filter is required" });
-    }
-
-    const masters = await Master.findOne(
-      {
-        projectID,
-        status: "active",
-        filter,
-      },
-      {
-        _id: 0,
-        __v: 0,
-        status: 0,
-        createdAt: 0,
-        updatedAt: 0,
-      }
-    );
-
-    if (!masters) {
-      return res.status(200).json({
-        code: "NO_MAPPING",
-        message: "Mapping not found",
-        mappings: {
-          appConfig: {},
-          playerConfig: {},
-          filter: {},
-        },
-      });
-    }
-
-    const appConfig = masters.appConfig?.params || {};
-    const playerConfig = masters.playerConfig?.params || {};
-
-    const resObj = {
-      appConfig,
-      playerConfig,
-      filter: masters.filter,
-      projectID: masters.projectID,
-      companyID: masters.companyID,
-    };
-
-    res
-      .status(200)
-      .json({ code: "FOUND", message: "Success", mappings: resObj });
-  } catch (error) {
-    console.log(error.message);
-    return res.status(500).send(error.message);
-  }
-};
-
 export const getAllConfigs = async (req, res) => {
   try {
     const { projectID } = req.query;
@@ -1018,5 +667,249 @@ export const deleteConfigType = async (req, res) => {
     res.status(200).json({ message: "Success" });
   } catch (error) {
     return res.status(500).json(error);
+  }
+};
+
+// MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
+export const createMapping = async (req, res) => {
+  try {
+    const { companyID, projectID, configs, filter } = req.body;
+    const owner = req.session.username || req.user.email;
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne({ status: "active", projectID });
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(owner) && !project.editors.includes(owner):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const appConfig = await AppConfig.findOne(
+      {
+        status: "active",
+        configID: configs.app.configID,
+      },
+      { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
+    );
+
+    if (!appConfig) {
+      return res.status(404).json({ message: "AppConfig not found" });
+    }
+
+    const playerConfig = await PlayerConfig.findOne(
+      {
+        status: "active",
+        configID: configs.player.configID,
+      },
+      { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
+    );
+
+    if (!playerConfig) {
+      return res.status(404).json({ message: "PlayerConfig not found" });
+    }
+
+    const custom = Object.entries(configs).reduce((acc, [key, value]) => {
+      if (key !== "app" && key !== "player") {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+
+    const customConfig = {};
+
+    // check if all configs are valid
+    if (Object.keys(custom).length > 0) {
+      for (let [key, value] of Object.entries(custom)) {
+        const config = await CustomConfig.findOne(
+          {
+            status: "active",
+            configID: value.configID,
+          },
+          { _id: 0, configID: 1, name: 1, desc: 1, params: 1 }
+        );
+
+        if (!config) {
+          return res.status(404).json({ message: `${key} Config not found` });
+        }
+
+        customConfig[key] = config;
+      }
+    }
+
+    // For Loop for all type of configs.
+    let searchFilter = {};
+    for (const key in filter) {
+      if (filter[key] === "") {
+        searchFilter[key] = project.filters[key].default;
+      } else if (filter[key] === "ALL") {
+        searchFilter[key] = project.filters[key].values;
+      } else {
+        searchFilter[key] = filter[key];
+      }
+    } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
+
+    let filterConditions = Object.entries(searchFilter).reduce(
+      (acc, [key, value]) => {
+        if (Array.isArray(value)) {
+          let newAcc = [];
+          for (let val of value) {
+            if (acc.length === 0) {
+              newAcc.push({ [key]: val });
+            } else {
+              for (let obj of acc) {
+                newAcc.push({ ...obj, [key]: val });
+              }
+            }
+          }
+          return newAcc;
+        } else {
+          if (acc.length === 0) {
+            return [{ [key]: value }];
+          } else {
+            return acc.map((obj) => ({ ...obj, [key]: value }));
+          }
+        }
+      },
+      []
+    );
+
+    // create or update Master
+    for (let condition of filterConditions) {
+      await Master.findOneAndUpdate(
+        {
+          projectID,
+          filter: condition,
+          status: "active",
+        },
+        {
+          appConfig,
+          playerConfig,
+          customConfig,
+          filter: condition,
+          projectID,
+          companyID,
+        },
+        { upsert: true }
+      );
+    }
+
+    res.status(200).json({ message: "Success" });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).send(error.message);
+  }
+};
+
+// DELETE MAPPING FROM MASTER - PROJECT OWNER / EDITOR
+export const deleteMapping = async (req, res) => {
+  try {
+    const { projectID, filter } = req.body;
+    const owner = req.session.username || req.user.email;
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne({ status: "active", projectID });
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(owner) && !project.editors.includes(owner):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const masterDoc = await Master.findOneAndUpdate(
+      {
+        projectID,
+        filter,
+        status: "active",
+      },
+      {
+        status: "inactive",
+      }
+    );
+
+    if (!masterDoc) {
+      return res.status(404).json({ message: "Mapping not found" });
+    }
+
+    res.status(200).json({ message: "Success" });
+  } catch (error) {
+    return res.status(500).send(error);
+  }
+};
+
+// GET ALL MAPPINGS - PROJECT OWNER / EDITOR
+export const getAllMappings = async (req, res) => {
+  try {
+    const { projectID, filter } = req.body;
+    const owner = req.session.username || req.user.email;
+
+    // Check if Project exists & Authorized
+    const project = await Project.findOne({ status: "active", projectID });
+
+    switch (true) {
+      case !project:
+        return res.status(404).json({ message: "Project not found" });
+      case !project.owners.includes(owner) && !project.editors.includes(owner):
+        return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    let searchFilter = {};
+    for (const key in filter) {
+      if (filter[key] === "") {
+        searchFilter[key] = project.filters[key].default;
+      } else if (filter[key] === "ALL") {
+        searchFilter[key] = project.filters[key].values;
+      } else {
+        searchFilter[key] = filter[key];
+      }
+    } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
+
+    let filterConditions = Object.entries(searchFilter).reduce(
+      (acc, [key, value]) => {
+        if (Array.isArray(value)) {
+          let newAcc = [];
+          for (let val of value) {
+            if (acc.length === 0) {
+              newAcc.push({ [key]: val });
+            } else {
+              for (let obj of acc) {
+                newAcc.push({ ...obj, [key]: val });
+              }
+            }
+          }
+          return newAcc;
+        } else {
+          if (acc.length === 0) {
+            return [{ [key]: value }];
+          } else {
+            return acc.map((obj) => ({ ...obj, [key]: value }));
+          }
+        }
+      },
+      []
+    );
+
+    const result = await Master.find(
+      {
+        projectID,
+        status: "active",
+        filter: { $in: filterConditions },
+      },
+      {
+        _id: 0,
+        __v: 0,
+        status: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      }
+    );
+
+    res
+      .status(200)
+      .json({ code: "FOUND", message: "Success", mappings: result });
+  } catch (error) {
+    return res.status(500).send(error.message);
   }
 };

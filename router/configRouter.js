@@ -9,8 +9,6 @@ import {
   deleteConfig,
   modifyConfig,
   cloneConfig,
-  getActiveMapping,
-  getMappingScale,
   getAllMappings,
   getAllConfigs,
   addConfig,
@@ -28,9 +26,7 @@ router.post("/update", modifyConfig);
 router.post("/clone", cloneConfig);
 router.post("/create-mapping", createMapping);
 router.post("/delete-mapping", deleteMapping);
-router.post("/mapping/active", getActiveMapping);
 router.post("/mapping/all", getAllMappings);
-router.post("/mapping/scale", getMappingScale);
 
 // LEGACY
 router.post("/add-app-config", addAppConfig);

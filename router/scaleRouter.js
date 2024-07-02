@@ -2,6 +2,6 @@ import { Router } from "express";
 import { getMapping } from "../controllers/scale.js";
 const router = Router();
 
-router.post("/get-mappings", getMapping);
+router.post("/get-mapping", getMapping);
 
 export default router;

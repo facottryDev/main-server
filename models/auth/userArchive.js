@@ -58,4 +58,4 @@ const userArchiveSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.userarchives || mongoose.model("userarchive", userArchiveSchema);
+export default mongoose.model.archiveusers || mongoose.model("archiveuser", userArchiveSchema);

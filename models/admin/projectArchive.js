@@ -36,6 +36,11 @@ const projectArchivesSchema = new mongoose.Schema(
       default: {}
     },
 
+    configTypes: {
+      type: Array,
+      default: ['app', 'player']
+    },
+
     joinRequests: [
       {
         type: String,
@@ -80,5 +85,5 @@ const projectArchivesSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.projectarchives ||
-mongoose.model("projectarchive", projectArchivesSchema);
+export default mongoose.model.archiveprojects ||
+mongoose.model("archiveproject", projectArchivesSchema);

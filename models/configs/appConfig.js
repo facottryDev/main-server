@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const playerConfigArchiveSchema = new mongoose.Schema(
+const appConfigSchema = new mongoose.Schema(
   {
     configID: {
       type: String,
@@ -13,14 +13,19 @@ const playerConfigArchiveSchema = new mongoose.Schema(
       required: true,
     },
 
-    desc: {
-      type: String
+    type: {
+      type: String,
+      default: "app",
     },
 
     status: {
       type: String,
       default: "active",
       enum: ["active", "inactive"],
+    },
+
+    desc: {
+      type: String
     },
 
     projectID: {
@@ -36,14 +41,9 @@ const playerConfigArchiveSchema = new mongoose.Schema(
     params: {
       type: Object,
     },
-
-    demo_url: {
-      type: String,
-      default: "https://res.cloudinary.com/dqjkucbjn/image/upload/v1715428241/facottry_player_demo.jpg",
-    },
   },
   { timestamps: true }
 );
 
-export default mongoose.model.playerconfigarchives ||
-mongoose.model("playerconfigarchive", playerConfigArchiveSchema);
+export default mongoose.model.appconfigs ||
+  mongoose.model("appconfig", appConfigSchema);

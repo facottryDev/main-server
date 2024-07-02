@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const companyArchivesSchema = new mongoose.Schema(
+const companySchema = new mongoose.Schema(
   {
     companyID: {
       type: String,
@@ -57,5 +57,5 @@ const companyArchivesSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-export default mongoose.model.companyarchives ||
-mongoose.model("companyarchive", companyArchivesSchema);
+export default mongoose.model.companies ||
+mongoose.model("company", companySchema);

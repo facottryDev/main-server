@@ -56,6 +56,7 @@ router.post('/project/change-access', changeAccess);
 router.post('/project/clone', cloneProject);
 router.post('/project/config-type/add', addConfigType);
 router.delete('/project/config-type/delete', deleteConfigType);
+
 router.post('/filter/add', addFilter);
 router.post('/filter/update', updateFilter);
 router.post('/filter/delete', deleteFilter);

@@ -3,6 +3,7 @@ import Company from "../models/admin/company.js";
 import Project from "../models/admin/project.js";
 import AppConfig from "../models/configs/appConfig.js";
 import PlayerConfig from "../models/configs/playerConfig.js";
+import Master from "../models/scale/master.js";
 
 // GET ADMIN INFO
 export const getAdmin = async (req, res) => {
@@ -1037,10 +1038,16 @@ export const addFilter = async (req, res) => {
       return res.status(409).json({ message: "Filter already exists" });
     }
 
-    // Check if default value is present in values
+    // if default value is not present in values, add it
     if (!filter.values.includes(filter.default)) {
-      return res.status(400).json({ message: "Default value not in values" });
+      filter.values.push(filter.default);
     }
+
+    // update all previous mappings of the project with the new filter and its default value
+    await Master.updateMany(
+      { status: "active", projectID },
+      { $set: { [`filter.${filter.name}`]: filter.default } }
+    );
 
     // Add filter to project
     project.filters[filter.name] = {
@@ -1048,11 +1055,12 @@ export const addFilter = async (req, res) => {
       values: filter.values,
     };
 
-    project.markModified('filters');
-
+    project.markModified("filters");
     await project.save();
+
     res.status(200).json({ message: "Filter added successfully" });
   } catch (error) {
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -1087,12 +1095,12 @@ export const updateFilter = async (req, res) => {
       values: filter.values,
     };
 
-    project.markModified('filters');
+    project.markModified("filters");
 
     await project.save();
     res.status(200).json({ message: "Filter updated successfully" });
   } catch (error) {
-    console.log(error.message)
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -1115,17 +1123,18 @@ export const deleteFilter = async (req, res) => {
     }
 
     // Check if filter exists
-    const filterExists = project.filters.find((f) => f.name === filterName);
-
-    if (!filterExists) {
+    if (!project.filters || !project.filters[filterName]) {
       return res.status(404).json({ message: "Filter not found" });
     }
 
-    // Remove filter from filters array
-    project.filters = project.filters.filter((f) => f.name !== filterName);
+    // Remove filter from filters object
+    delete project.filters[filterName];
+    project.markModified("filters");
     await project.save();
+
     res.status(200).json({ message: "Filter deleted successfully" });
   } catch (error) {
+    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -1240,15 +1249,20 @@ export const addConfigType = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
+    if(!project.configTypes || project.configTypes.length === 0) {
+      project.configTypes = ['app', 'player'];
+    }
+
     // Check if type already exists
     const typeExists = project.configTypes.includes(configType);
-    
+
     if (typeExists) {
       return res.status(409).json({ message: "Type already exists" });
     }
 
     // Add type to project
     project.configTypes.push(configType);
+    project.markModified("configTypes");
     await project.save();
 
     res.status(200).json({ message: "Config type added successfully" });

@@ -45,7 +45,7 @@ const corsOptions = {
   optionSuccessStatus: 200,
 };
 
-app.use(cors(corsOptions));
+app.use(cors()); //BYPASS CORS
 
 if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
 app.use(express.json());

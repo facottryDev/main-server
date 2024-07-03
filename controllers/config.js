@@ -719,7 +719,7 @@ export const createMapping = async (req, res) => {
     }
 
     const custom = Object.entries(configs).reduce((acc, [key, value]) => {
-      if (key !== "app" && key !== "player") {
+      if (key !== "app" && key !== "ac" && key !== "player" && key !== "pc") {
         acc[key] = value;
       }
       return acc;
@@ -754,7 +754,7 @@ export const createMapping = async (req, res) => {
       } else if (filter[key] === "ALL") {
         searchFilter[key] = project.filters[key].values;
       } else {
-        searchFilter[key] = filter[key];
+        searchFilter[key] = filter[key].split(", ");
       }
     } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
 
@@ -805,6 +805,7 @@ export const createMapping = async (req, res) => {
 
     res.status(200).json({ message: "Success" });
   } catch (error) {
+    console.log(error.message);
     console.log(error.message);
     return res.status(500).send(error.message);
   }
@@ -870,9 +871,11 @@ export const getAllMappings = async (req, res) => {
       } else if (filter[key] === "ALL") {
         searchFilter[key] = project.filters[key].values;
       } else {
-        searchFilter[key] = filter[key];
+        searchFilter[key] = filter[key].split(", ");
       }
     } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
+
+    console.log(searchFilter)
 
     let filterConditions = Object.entries(searchFilter).reduce(
       (acc, [key, value]) => {

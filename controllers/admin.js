@@ -1132,6 +1132,12 @@ export const deleteFilter = async (req, res) => {
     project.markModified("filters");
     await project.save();
 
+    // Remove filter key from all masters of the project
+    await Master.updateMany(
+      { status: "active", projectID },
+      { $unset: { [`filter.${filterName}`]: "" } }
+    );
+
     res.status(200).json({ message: "Filter deleted successfully" });
   } catch (error) {
     console.log(error.message);
@@ -1236,7 +1242,14 @@ export const cloneProject = async (req, res) => {
 export const addConfigType = async (req, res) => {
   try {
     const owner = req.session.username || req.user.email;
-    const { projectID, configType } = req.body;
+    const { projectID, config } = req.body;
+
+    switch (true) {
+      case !config:
+        return res.status(400).json({ message: "Config details not provided" });
+      case !config.name:
+        return res.status(400).json({ message: "Config name not provided" });
+    }
 
     const project = await Project.findOne({
       status: "active",
@@ -1249,24 +1262,70 @@ export const addConfigType = async (req, res) => {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    if(!project.configTypes || project.configTypes.length === 0) {
-      project.configTypes = ['app', 'player'];
-    }
-
-    // Check if type already exists
-    const typeExists = project.configTypes.includes(configType);
+    // Check if the name already exists
+    const typeExists = project.configTypes.find(
+      (type) => type.name === config.name
+    );
 
     if (typeExists) {
       return res.status(409).json({ message: "Type already exists" });
     }
 
     // Add type to project
-    project.configTypes.push(configType);
+    project.configTypes.push({
+      name: config.name,
+      desc: config.desc || "",
+      status: config.status || "active",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     project.markModified("configTypes");
     await project.save();
 
     res.status(200).json({ message: "Config type added successfully" });
   } catch (error) {
     return res.status(500).send(error.message);
+  }
+};
+
+export const deleteConfigType = async (req, res) => {
+  try {
+    const { projectID, name } = req.query;
+    const user = req.session.username || req.user.email;
+
+    const project = await Project.findOne({
+      status: "active",
+      projectID,
+      owners: { $in: [user] },
+    });
+
+    // Check if project exists
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    // Check if type exists
+    const typeExists = project.configTypes.find((type) => type.name === name);
+
+    if (!typeExists) {
+      return res.status(404).json({ message: "Type not found" });
+    }
+
+    // remove type from project
+    project.configTypes = project.configTypes.filter(
+      (type) => type.name !== name
+    );
+    project.markModified("configTypes");
+    await project.save();
+
+    // remove the type from customConfigs of all masters
+    await Master.updateMany(
+      { status: "active", projectID },
+      { $unset: { [`customConfigs.${name}`]: "" } }
+    );
+
+    res.status(200).json({ message: "Type deleted successfully" });    
+  } catch (error) {
+    return res.status(500).json(error);
   }
 };

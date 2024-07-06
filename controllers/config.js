@@ -241,7 +241,7 @@ export const modifyConfig = async (req, res) => {
           "appConfig.params": params,
         }
       );
-    } else if (configID.startsWith("player") || configID.startsWith("pc") ) {
+    } else if (configID.startsWith("player") || configID.startsWith("pc")) {
       const playerConfig = await PlayerConfig.findOne({
         status: "active",
         configID,
@@ -504,7 +504,7 @@ export const getAllConfigs = async (req, res) => {
       appConfigs,
       playerConfigs,
       customConfigs,
-      types: project.configTypes,
+      configTypes: project.configTypes,
     });
   } catch (error) {
     return res.status(500).send(error.message);
@@ -535,15 +535,9 @@ export const addConfig = async (req, res) => {
         return res.status(404).json({ message: "Project not found" });
       case !project.owners.includes(owner) && !project.editors.includes(owner):
         return res.status(403).json({ message: "Unauthorized" });
-      case !project.configTypes || project.configTypes.length === 0: {
-        project.configTypes = ['app', 'player'];
-        break;
-      }
-      case !project.configTypes.includes(type):
-        return res.status(400).json({ message: "Invalid type" });
+      case !project.configTypes.find((configType) => configType.name === type):
+        return res.status(400).json({ message: "Invalid Config Type" });
     }
-
-    console.log(type)
 
     if (type === "app") {
       const appConfig = await AppConfig.findOne({
@@ -597,7 +591,7 @@ export const addConfig = async (req, res) => {
       });
 
       await newPlayerConfig.save();
-    } else {
+    } else {     
       const customConfig = await CustomConfig.findOne({
         status: "active",
         projectID,
@@ -634,50 +628,6 @@ export const addConfig = async (req, res) => {
   }
 };
 
-export const deleteConfigType = async (req, res) => {
-  try {
-    const { projectID, type } = req.query;
-    const user = req.session.username || req.user.email;
-
-    if (!projectID) {
-      return res.status(400).json({ message: "ProjectID is required" });
-    }
-
-    const project = await Project.findOne({ status: "active", projectID });
-
-    if (!project) {
-      return res.status(404).json({ message: "Project not found" });
-    }
-
-    if (!project.owners.includes(user) && !project.editors.includes(user)) {
-      return res.status(403).json({ message: "Unauthorized" });
-    }
-
-    if (!project.configTypes.includes(type)) {
-      return res.status(400).json({ message: "Invalid type" });
-    }
-
-    await Project.updateOne({ projectID }, { $pull: { configTypes: type } });
-
-    // delete all configs of this type (except app & player configs)
-    await CustomConfig.updateMany({ projectID, type }, { status: "inactive" });
-
-    // delete all master docs with where customConfig has a key of type
-    await Master.updateMany(
-      {
-        projectID,
-        status: "active",
-        [`customConfig.${type}`]: { $exists: true },
-      },
-      { status: "inactive" }
-    );
-
-    res.status(200).json({ message: "Success" });
-  } catch (error) {
-    return res.status(500).json(error);
-  }
-};
-
 // MAP CONFIGS TO FILTER IN MASTER - PROJECT OWNER / EDITOR
 export const createMapping = async (req, res) => {
   try {
@@ -692,6 +642,8 @@ export const createMapping = async (req, res) => {
         return res.status(404).json({ message: "Project not found" });
       case !project.owners.includes(owner) && !project.editors.includes(owner):
         return res.status(403).json({ message: "Unauthorized" });
+      case !configs.app || !configs.player:
+        return res.status(400).json({ message: "App & Player Configs required" });
     }
 
     const appConfig = await AppConfig.findOne(
@@ -716,6 +668,15 @@ export const createMapping = async (req, res) => {
 
     if (!playerConfig) {
       return res.status(404).json({ message: "PlayerConfig not found" });
+    }
+
+    // remove all inactive config types if present
+    const inactiveConfigTypes = project.configTypes.filter(
+      (configType) => configType.status === "inactive"
+    );
+
+    for (let configType of inactiveConfigTypes) {
+      delete configs[configType.name];
     }
 
     const custom = Object.entries(configs).reduce((acc, [key, value]) => {
@@ -806,7 +767,6 @@ export const createMapping = async (req, res) => {
     res.status(200).json({ message: "Success" });
   } catch (error) {
     console.log(error.message);
-    console.log(error.message);
     return res.status(500).send(error.message);
   }
 };
@@ -854,6 +814,8 @@ export const getAllMappings = async (req, res) => {
     const { projectID, filter } = req.body;
     const owner = req.session.username || req.user.email;
 
+    console.log(filter);
+
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
 
@@ -875,7 +837,7 @@ export const getAllMappings = async (req, res) => {
       }
     } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
 
-    console.log(searchFilter)
+    console.log(searchFilter);
 
     let filterConditions = Object.entries(searchFilter).reduce(
       (acc, [key, value]) => {
@@ -920,6 +882,42 @@ export const getAllMappings = async (req, res) => {
     res
       .status(200)
       .json({ code: "FOUND", message: "Success", mappings: result });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).send(error.message);
+  }
+};
+
+export const toggleConfigTypeStatus = async (req, res) => {
+  try {
+    const { projectID, name } = req.body;
+    const owner = req.session.username || req.user.email;
+
+    const project = await Project.findOne({ status: "active", projectID });
+
+    if (!project) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    if (!project.owners.includes(owner)) {
+      return res.status(403).json({ message: "Unauthorized" });
+    }
+
+    const configType = project.configTypes.find(
+      (configType) => configType.name === name
+    );
+
+    if (!configType) {
+      return res.status(404).json({ message: "Config Type not found" });
+    }
+
+    configType.status = configType.status === "active" ? "inactive" : "active";
+    project.markModified("configTypes");
+
+    console.log(project.configTypes);
+    await project.save();
+
+    res.status(200).json({ message: "Success" });
   } catch (error) {
     return res.status(500).send(error.message);
   }

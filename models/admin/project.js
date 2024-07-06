@@ -33,12 +33,52 @@ const projectSchema = new mongoose.Schema(
 
     filters: {
       type: Object,
-      default: {}
+      default: {},
     },
 
     configTypes: {
-      type: Array,
-      default: ['app', 'player']
+      type: [
+        {
+          name: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          desc: {
+            type: String,
+            trim: true,
+          },
+          status: {
+            type: String,
+            default: "active",
+            enum: ["active", "inactive"],
+          },
+          createdAt: {
+            type: Date,
+            default: Date.now(),
+          },
+          updatedAt: {
+            type: Date,
+            default: Date.now(),
+          },
+        },
+      ],
+      default: [
+        {
+          name: "app",
+          desc: "Main Application Configuration",
+          status: "active",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+        {
+          name: "player",
+          desc: "Main Player Configuration",
+          status: "active",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        },
+      ],
     },
 
     joinRequests: [
@@ -48,7 +88,7 @@ const projectSchema = new mongoose.Schema(
           type: Date,
           default: Date.now() + 30 * 24 * 60 * 60 * 1000, // 1 month expiration
         },
-      }
+      },
     ],
 
     activeInvites: [
@@ -58,32 +98,32 @@ const projectSchema = new mongoose.Schema(
           type: Date,
           default: Date.now() + 30 * 24 * 60 * 60 * 1000, // 1 month expiration
         },
-      }
+      },
     ],
 
     owners: [
       {
         type: String,
         required: true,
-      }
+      },
     ],
 
     editors: [
       {
         type: String,
         trim: true,
-      }
+      },
     ],
 
     viewers: [
       {
         type: String,
         trim: true,
-      }
-    ]
+      },
+    ],
   },
   { timestamps: true }
 );
 
 export default mongoose.model.projects ||
-mongoose.model("project", projectSchema);
+  mongoose.model("project", projectSchema);

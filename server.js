@@ -16,6 +16,7 @@ import passport from "passport";
 import GoogleStrategy from "passport-google-oauth2";
 import User from "./models/auth/user.js";
 import { startCronJobs } from "./lib/cron.js";
+import crypto from "crypto";
 
 // Const declarations
 dotenv.config();
@@ -140,6 +141,8 @@ mongoose
 
 // Routes
 app.get("/", (req, res) => {
+  // const secret = crypto.randomBytes(32).toString('hex');
+  // console.log(secret);
   return res.send("FacOTTry Backend");
 });
 

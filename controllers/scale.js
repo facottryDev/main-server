@@ -1,4 +1,42 @@
-import Master from '../models/scale/master.js';
+import Master from "../models/scale/master.js";
+import crypto from "crypto";
+
+// SCALE AUTHENTICATION
+export const scaleAuth = (req, res, next) => {
+  try {
+    const clientHash = req.headers['x-client-hash'];
+    const date = new Date();
+    const currentHour = date.getHours();
+    const currentMinute = date.getMinutes();
+    let isAuthenticated = false;
+
+    const permanentSalt = process.env.SCALE_SALT;
+
+    for (let randomizer = 0; randomizer <= 9; randomizer++) {
+      const temporarySalt = `${currentHour}${currentMinute}${randomizer}`;
+      const dataToHash = `${permanentSalt}${temporarySalt}`;
+      const generatedHash = crypto
+        .createHash("sha256")
+        .update(dataToHash)
+        .digest("hex");
+
+      console.log(generatedHash, clientHash);
+      if (generatedHash === clientHash) {
+        isAuthenticated = true;
+        break;
+      }
+    }
+
+    if (isAuthenticated) {
+      next();
+    } else {
+      return res.status(401).send("Authentication Failed");
+    }
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).send(error.message);
+  }
+};
 
 // GET MAPPING FROM FILTER PARAMS
 export const getMapping = async (req, res) => {

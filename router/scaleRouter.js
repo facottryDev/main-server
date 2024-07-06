@@ -1,6 +1,12 @@
 import { Router } from "express";
-import { getMapping } from "../controllers/scale.js";
+import { getMapping, scaleAuth } from "../controllers/scale.js";
 const router = Router();
+
+router.use(scaleAuth);
+
+router.get("/", (req, res) => {
+  res.send("Authenticated");
+});
 
 router.post("/get-mapping", getMapping);
 

@@ -4,7 +4,7 @@ import crypto from "crypto";
 // SCALE AUTHENTICATION
 export const scaleAuth = (req, res, next) => {
   try {
-    const clientHash = req.headers['x-client-hash'];
+    const clientHash = req.headers["x-client-hash"];
     const date = new Date();
     const currentHour = date.getHours();
     const currentMinute = date.getMinutes();
@@ -13,14 +13,15 @@ export const scaleAuth = (req, res, next) => {
     const permanentSalt = process.env.SCALE_SALT;
 
     for (let randomizer = 0; randomizer <= 9; randomizer++) {
-      const temporarySalt = `${currentHour}${currentMinute}${randomizer}`;
-      const dataToHash = `${permanentSalt}${temporarySalt}`;
+      const temporarySalt = `${currentHour}${currentMinute}`;
+      const dataToHash = `${permanentSalt}${temporarySalt}${randomizer}`;
       const generatedHash = crypto
         .createHash("sha256")
         .update(dataToHash)
         .digest("hex");
 
       console.log(generatedHash, clientHash);
+
       if (generatedHash === clientHash) {
         isAuthenticated = true;
         break;

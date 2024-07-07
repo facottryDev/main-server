@@ -332,7 +332,7 @@ export const cloneConfig = async (req, res) => {
         projectID: appConfig.projectID,
         companyID: appConfig.companyID,
         desc: desc || appConfig.desc,
-        name: name || appConfig.name,
+        name: name + '_copy' || appConfig.name + '_copy',
         params: params || appConfig.params,
       });
       await newAppConfig.save();
@@ -776,6 +776,8 @@ export const deleteMapping = async (req, res) => {
   try {
     const { projectID, filter } = req.body;
     const owner = req.session.username || req.user.email;
+
+    console.log(filter)
 
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });

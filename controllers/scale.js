@@ -7,7 +7,8 @@ export const scaleAuth = (req, res, next) => {
     const clientHash = req.headers["x-client-hash"];
     const date = new Date();
     const currentHour = date.getHours();
-    const currentMinute = date.getMinutes();
+    // Adjust to change every 5 minutes
+    const currentMinute = Math.floor(date.getMinutes() / 5) * 5;
     let isAuthenticated = false;
 
     const permanentSalt = process.env.SCALE_SALT;

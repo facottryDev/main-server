@@ -777,8 +777,6 @@ export const deleteMapping = async (req, res) => {
     const { projectID, filter } = req.body;
     const owner = req.session.username || req.user.email;
 
-    console.log(filter)
-
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
 
@@ -816,8 +814,6 @@ export const getAllMappings = async (req, res) => {
     const { projectID, filter } = req.body;
     const owner = req.session.username || req.user.email;
 
-    console.log(filter);
-
     // Check if Project exists & Authorized
     const project = await Project.findOne({ status: "active", projectID });
 
@@ -838,8 +834,6 @@ export const getAllMappings = async (req, res) => {
         searchFilter[key] = filter[key].split(", ");
       }
     } // COUNTRY = [IND, USA], DEVICE = [MOBILE, DESKTOP], SUBSCRIPTION = FREE
-
-    console.log(searchFilter);
 
     let filterConditions = Object.entries(searchFilter).reduce(
       (acc, [key, value]) => {
@@ -915,8 +909,6 @@ export const toggleConfigTypeStatus = async (req, res) => {
 
     configType.status = configType.status === "active" ? "inactive" : "active";
     project.markModified("configTypes");
-
-    console.log(project.configTypes);
     await project.save();
 
     res.status(200).json({ message: "Success" });

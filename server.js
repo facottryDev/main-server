@@ -37,12 +37,20 @@ const corsOptions = {
   origin:
     process.env.NODE_ENV === "production"
       ? [
+          "http://localhost:3000",
+          "http://localhost:8000",
+          "http://localhost:5173",
           "https://facottry-website-pearl.vercel.app",
           "https://client-sdk.vercel.app",
-          "http://localhost:3000",
-          "http://localhost:5173"
+          "https://final-netflix-clone-git-main-vishal-aryas-projects.vercel.app",
+          "https://hotstart-clone-62.vercel.app/https://hotstart-clone-62.vercel.app",
+          "https://e-commerce-demo-git-main-vishal-aryas-projects.vercel.app",
         ]
-      : ["http://localhost:3000", "http://localhost:5173"],
+      : [
+          "http://localhost:3000",
+          "http://localhost:5173",
+          "http://localhost:8000",
+        ],
   credentials: true,
   optionSuccessStatus: 200,
 };
